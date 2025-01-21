@@ -34,6 +34,8 @@ type JwtClaimsPrincipalLoader struct {
 // FetchPrincipal implements the interface method
 func (l JwtClaimsPrincipalLoader) FetchPrincipal(ctx context.Context, subject string) (*Principal, error) {
 
+	log.Debugf("loading principal for sub %v from jwt claims", subject)
+
 	// get claism from jwt
 	claims, err := util.ClaimsFromJwt(l.jwt)
 	if err != nil {
@@ -43,8 +45,10 @@ func (l JwtClaimsPrincipalLoader) FetchPrincipal(ctx context.Context, subject st
 	// sub
 	var sub string
 	if v, ok := claims["sub"]; !ok {
+		log.Debug("no sub claim in JWT, cannot create principal")
 		return nil, errors.Errorf("no sub claim in JWT, cannot create principal")
 	} else if _, ok := v.(string); !ok {
+		log.Debug("invalid datatype for sub claim in JWT, cannot create principal")
 		return nil, errors.Errorf("invalid sub claim in JWT, cannot create principal")
 	} else {
 		sub = v.(string)
@@ -54,9 +58,12 @@ func (l JwtClaimsPrincipalLoader) FetchPrincipal(ctx context.Context, subject st
 	// with the sub claim fond in the JWT
 	if subject != "" {
 		if sub != subject {
+			log.Debugf("sub claim value %v found in JWT is differnt from %v, cannot create principal", sub, subject)
 			return nil, errors.Errorf("incorrect sub claim %v found in JWT", subject)
 		}
 	}
+
+	log.Debugf("sub claim value %v found in JWT, creating principal", sub)
 
 	// if login exists
 	var login, alias string
@@ -149,27 +156,26 @@ type CachePrincipalLoader struct {
 
 // FetchPrincipal implements the interface method
 func (l CachePrincipalLoader) FetchPrincipal(ctx context.Context, subject string) (*Principal, error) {
+
 	key := l.buildCacheKey(subject)
-	_pr, ttl, err := l.Cache.FetchWithTtl(ctx, key)
+	pr := Principal{
+		Roles: Set{},
+	}
+
+	ttl, err := l.Cache.FetchWithTtl(ctx, key, &pr)
 	if err != nil {
-		log.Debugf("cache miss: key=%v", key)
+		log.Debugf("cache miss for key=%v (sub) when fetching cached principal", key)
 		return nil, err
 	}
 
-	var ok bool
-	var pr Principal
-	if pr, ok = _pr.(Principal); !ok {
-		return nil, err
-	}
-
-	log.Debugf("cache hit: key=%v, ttl=%v expiry=%v", key, time.Now().Add(*ttl), pr.Expiry)
+	log.Debugf("cache hit for key=%v (sub) ttl=%v expiry=%v when fetching cached principal", key, time.Now().Add(*ttl), pr.Expiry)
 	return &pr, nil
 }
 
 func (l CachePrincipalLoader) Persist(ctx context.Context, pr Principal) error {
 	key := l.buildCacheKey(pr.Id) // Id is the value of "sub" claim
-	ttl := time.Until(pr.Expiry)
-	log.Debugf("caching principal key=%v, ttl=%v", key, ttl)
+	ttl := time.Until(pr.Expiry) * 10
+	log.Debugf("caching principal key=%v (sub), ttl=%v", key, ttl)
 
 	if err := l.Cache.PutWithTtl(ctx, key, pr, ttl); err != nil {
 		return err

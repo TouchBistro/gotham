@@ -123,8 +123,8 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 			return
 		}
 
-		principalFromCache := CachePrincipalLoader{prefix, cache}
-		if pr, err = principalFromCache.FetchPrincipal(ctx, sub); err != nil {
+		cloader := CachePrincipalLoader{prefix, cache}
+		if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
 
 			// if err, fetch principal from the claims found inside the id_token
 			idTokenHeader := ap.Config.JwtConfig.IdTokenHeader // get the id_token header
@@ -142,11 +142,11 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 			// 	return
 			// }
 
-			principalFromClaims := JwtClaimsPrincipalLoader{
+			jloader := JwtClaimsPrincipalLoader{
 				config: ap.Config,
 				jwt:    oidcDataHeaderVal,
 			}
-			if pr, err = principalFromClaims.FetchPrincipal(ctx, sub); err != nil {
+			if pr, err = jloader.FetchPrincipal(ctx, sub); err != nil {
 				abortRespondAndLogError(c, http.StatusUnauthorized, "error loading principal from cliams in JWT")
 				return
 			}
@@ -163,7 +163,7 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 				}
 
 				// here we fill out roles from the gruops that are policy def specific
-				prFromDb.Roles, prFromDb.IsSuperAdmin, prFromDb.IsAdmin = rolesFromGroups(ap.Config, pr.Groups)
+				prFromDb.Roles, prFromDb.IsSuperAdmin, prFromDb.IsAdmin = rolesFromGroups(ap.Config, prFromDb.Groups)
 
 				// merge the principal from cliams with the principal from storage
 				pr.Merge(*prFromDb)                           // merge with the principal obj from database
@@ -174,7 +174,7 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 			pr.RawToken = oidcDataHeaderVal
 
 			// before caching, we force the expiry in principal to 2 min
-			if err = principalFromCache.Persist(ctx, *pr); err != nil {
+			if err = cloader.Persist(ctx, *pr); err != nil {
 				log.Warnf("error caching principal for external id %v", sub)
 			}
 		}
@@ -208,38 +208,6 @@ func abortRespondAndLogError(c *gin.Context, httpStatusCode int, msg string) {
 	})
 	c.Abort()
 }
-
-// // rolesFromGroups using mapping defined in config, this func
-// // returns a RoleSet from the list of groups that these supplied groups
-// // lie into; also return if any of these roles are superAdmins & Admins
-// func rolesFromGroups(cfg Config, grps []string) (Set, bool, bool) {
-
-// 	var issa, isa bool
-
-// 	if grps == nil {
-// 		return nil, issa, isa
-// 	}
-
-// 	roles := Set{}
-// 	for roleName, membersGroupset := range cfg.Roles.Definitions {
-// 		// if any of the groups are part of this role...
-// 		if membersGroupset.Contains(grps...) {
-// 			// add the role to this list
-// 			roles.Insert(roleName)
-
-// 			// check if this role is admin; mark user admin
-// 			if _, ok := cfg.Roles.AdminRoles[roleName]; ok {
-// 				isa = ok
-// 			}
-
-// 			// check if this role is super admin; mark user super admin
-// 			if _, ok := cfg.Roles.SuperAdminRoles[roleName]; ok {
-// 				issa = ok
-// 			}
-// 		}
-// 	}
-// 	return roles, issa, isa
-// }
 
 // returnFirstNonZero returns the first non-zero string from he args
 func returnFirstNonZero(str1 string, strn ...string) string {

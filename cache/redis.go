@@ -32,6 +32,10 @@ func (r *RedisCache) connect() error {
 	return nil
 }
 
+func (r RedisCache) internalSingletonKey() string {
+	fmt.Printf("%v:%v/%v", r.host, r.port, r.db)
+}
+
 // method implementations
 
 func (r *RedisCache) Put(ctx context.Context, key string, val any) error {
@@ -52,36 +56,34 @@ func (r *RedisCache) PutWithTtl(ctx context.Context, key string, val any, expiry
 	return nil
 }
 
-func (r *RedisCache) Fetch(ctx context.Context, key string) (any, error) {
+func (r *RedisCache) Fetch(ctx context.Context, key string, val any) error {
 	cmd := r.client.Get(ctx, key)
 	v, err := cmd.Result()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	var val any
 	if err := json.Unmarshal([]byte(v), &val); err != nil {
-		return nil, err
+		return err
 	}
-	return val, nil
+	return nil
 }
 
-func (r *RedisCache) FetchWithTtl(ctx context.Context, key string) (any, *time.Duration, error) {
+func (r *RedisCache) FetchWithTtl(ctx context.Context, key string, val any) (*time.Duration, error) {
 
-	val, err := r.Fetch(ctx, key)
-	if err != nil {
-		return nil, nil, err
+	if err := r.Fetch(ctx, key, &val); err != nil {
+		return nil, err
 	}
 
 	var expiry *time.Duration
 	cmd2 := r.client.TTL(ctx, key)
 	if ttl, err := cmd2.Result(); err != nil {
-		return nil, nil, err
+		return nil, err
 	} else {
 		expiry = &ttl
 	}
 
-	return val, expiry, nil
+	return expiry, nil
 }
 
 func (r *RedisCache) Delete(ctx context.Context, key string) (int64, error) {

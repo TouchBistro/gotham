@@ -25,7 +25,7 @@ type RedisConfig struct {
 	Db   int    `json:"db"`
 }
 
-var redisCacheImpl MemoryCache
+var redisCacheImplMap map[string]MemoryCache
 
 // Initialize a new instance of MemoryCache from app settings
 // see InitializeWithConfig for impelementation details.
@@ -60,14 +60,12 @@ func InitializeWithConfig(cfg *Config) (MemoryCache, error) {
 
 	case Redis:
 
-		if redisCacheImpl != nil {
-			return redisCacheImpl, nil
-		}
-
+		// ultimate defaults
 		host := "localhost"
 		port := 6379
 		db := 0
 
+		// now check config
 		if config.RedisConfig != nil {
 			r := config.RedisConfig
 			host = r.Host
@@ -77,18 +75,30 @@ func InitializeWithConfig(cfg *Config) (MemoryCache, error) {
 			db = r.Db
 		}
 
-		log.Debugf("initializing redis cache with host: %v, port: %v", host, port)
 		c := &RedisCache{
 			host: host,
 			port: port,
 			db:   db,
 		}
+
+		// check singleton map, if an instance exists, then return it
+		if c, ok := redisCacheImplMap[c.internalSingletonKey()]; ok {
+			return c, nil
+		}
+
+		log.Debugf("initializing redis cache with host: %v, port: %v, db: %v", host, port, db)
 		if err := c.connect(); err != nil {
 			return nil, err
 		}
 
-		redisCacheImpl = c // assign to singleton
-		return redisCacheImpl, nil
+		// initialize map
+		if redisCacheImplMap == nil {
+			redisCacheImplMap = make(map[string]MemoryCache)
+		}
+
+		// store singleton in map
+		redisCacheImplMap[c.internalSingletonKey()] = c
+		return c, nil
 
 	// internal memory (RAM)
 	case InternalMemory:

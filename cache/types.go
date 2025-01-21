@@ -18,10 +18,10 @@ type MemoryCache interface {
 	PutWithTtl(context.Context, string, any, time.Duration) error
 
 	// fetch the value for the supplied key, return the value or error
-	Fetch(context.Context, string) (any, error)
+	Fetch(context.Context, string, any) error
 
 	// fetch the value and the set TTL for the supplied key or an error
-	FetchWithTtl(context.Context, string) (any, *time.Duration, error)
+	FetchWithTtl(context.Context, string, any) (*time.Duration, error)
 
 	// delete the data for the supplied key
 	Delete(context.Context, string) (int64, error)
