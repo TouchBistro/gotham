@@ -32,11 +32,6 @@ const (
 )
 
 const (
-	ContextKeyAlias     string = "alias"
-	ContextKeyPrincipal string = "principal"
-)
-
-const (
 	PolicyEffectAllow PolicyEffect = "allow"
 	PolicyEffectDeny  PolicyEffect = "deny"
 )

@@ -72,3 +72,14 @@ func (p *Principal) Merge(other Principal) {
 		p.Expiry = other.Expiry
 	}
 }
+
+// returnFirstNonZero returns the first non-zero string from he args
+func returnFirstNonZero(str1 string, strn ...string) string {
+	strs := append([]string{str1}, strn...)
+	for _, s := range strs {
+		if s != "" {
+			return s
+		}
+	}
+	return str1
+}

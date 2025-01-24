@@ -26,6 +26,21 @@ func (p PolicyAction) toGinHandler() gin.HandlerFunc {
 	}
 }
 
+func (p PolicyAction) toHttpHandler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		p.apply(r)
+	}
+}
+
+func (p PolicyAction) toHttpMiddlewareFunc() MiddlewareFunc {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			p.apply(r)
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
 // apply evaluates the action on the supplied http request
 func (p PolicyAction) apply(r *http.Request) error {
 	var typ any

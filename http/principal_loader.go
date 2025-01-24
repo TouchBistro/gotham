@@ -174,7 +174,7 @@ func (l CachePrincipalLoader) FetchPrincipal(ctx context.Context, subject string
 
 func (l CachePrincipalLoader) Persist(ctx context.Context, pr Principal) error {
 	key := l.buildCacheKey(pr.Id) // Id is the value of "sub" claim
-	ttl := time.Until(pr.Expiry) * 10
+	ttl := time.Until(pr.Expiry)
 	log.Debugf("caching principal key=%v (sub), ttl=%v", key, ttl)
 
 	if err := l.Cache.PutWithTtl(ctx, key, pr, ttl); err != nil {
@@ -188,6 +188,16 @@ func (l CachePrincipalLoader) buildCacheKey(sub string) string {
 		return fmt.Sprintf("%v::%v", l.KeyPrefix, sub)
 	}
 	return sub
+}
+
+// StaticPrincipalLoader is a mocking helper function that returns a PrincipalLoader that
+// returns the supplied principal struct, with the Id set to supplied `sub`
+func StaticPrincipalLoader(pr Principal) PrincipalLoaderFunc {
+	return PrincipalLoaderFunc(func(ctx context.Context, sub string) (*Principal, error) {
+		p := pr
+		p.Id = sub // set sub as external Id, everything else stays as-is
+		return &p, nil
+	})
 }
 
 // helper functions

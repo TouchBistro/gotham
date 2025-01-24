@@ -18,16 +18,16 @@ func AllowAdminOnlyGinHandler() gin.HandlerFunc {
 
 		var pr Principal
 		if v, ok := c.Get(ContextKeyPrincipal); !ok {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		} else if pr, ok = v.(Principal); !ok {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		}
 
 		reqUserIsAdmin := pr.IsAdmin || pr.IsSuperAdmin
 		if !reqUserIsAdmin {
-			abortRespondAndLogError(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make as it is not an administrator user", pr.Alias))
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make as it is not an administrator user", pr.Alias))
 			return
 		}
 	}
@@ -43,10 +43,10 @@ func AllowAdminOrAliasGinHandler(pathParmName string) gin.HandlerFunc {
 
 		var pr Principal
 		if v, ok := c.Get(ContextKeyPrincipal); !ok {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		} else if pr, ok = v.(Principal); !ok {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		}
 
@@ -55,7 +55,7 @@ func AllowAdminOrAliasGinHandler(pathParmName string) gin.HandlerFunc {
 		userFromRequest := c.Param(pathParmName)
 
 		if !reqUserIsAdmin && userFromAuth != userFromRequest {
-			abortRespondAndLogError(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make a request on behalf of %q", userFromAuth, userFromRequest))
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make a request on behalf of %q", userFromAuth, userFromRequest))
 			return
 		}
 	}
@@ -99,19 +99,10 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 		subClaimHeader := ap.Config.JwtConfig.SubClaimHeader // get the sub claim header
 		subClaimHeaderVals := c.Request.Header[subClaimHeader]
 		if len(subClaimHeaderVals) == 0 {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "no sub claim value found from header")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no sub claim value found from header")
 			return
 		}
 		sub := subClaimHeaderVals[0] // grab the first one
-
-		// fetch sub/external id from the cliams
-		// var sub string
-		// if sub_any, ok := claims["sub"]; !ok {
-		// 	abortRespondAndLogError(c, http.StatusUnauthorized, "invalid id/subject returned in IdP token")
-		// 	return
-		// } else {
-		// 	sub = sub_any.(string) // TODO risky, assert properly; but that's what it should be...
-		// }
 
 		// fetch cached principal
 		var err error
@@ -119,7 +110,7 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 		prefix := "principal"
 		cache, err := cache.Initialize()
 		if err != nil {
-			abortRespondAndLogError(c, http.StatusUnauthorized, "error initialzing cache")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "error initialzing cache")
 			return
 		}
 
@@ -130,24 +121,17 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 			idTokenHeader := ap.Config.JwtConfig.IdTokenHeader // get the id_token header
 			oidcDataHeaderVals := c.Request.Header[idTokenHeader]
 			if len(oidcDataHeaderVals) == 0 {
-				abortRespondAndLogError(c, http.StatusUnauthorized, "no id token value found from header")
+				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no id token value found from header")
 				return
 			}
 			oidcDataHeaderVal := oidcDataHeaderVals[0]
-
-			// fetch claims from the incoming jwt token
-			// claims, err := util.ClaimsFromJwt(oidcDataHeaderVal)
-			// if err != nil {
-			// 	abortRespondAndLogError(c, http.StatusUnauthorized, err.Error())
-			// 	return
-			// }
 
 			jloader := JwtClaimsPrincipalLoader{
 				config: ap.Config,
 				jwt:    oidcDataHeaderVal,
 			}
 			if pr, err = jloader.FetchPrincipal(ctx, sub); err != nil {
-				abortRespondAndLogError(c, http.StatusUnauthorized, "error loading principal from cliams in JWT")
+				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "error loading principal from cliams in JWT")
 				return
 			}
 
@@ -158,7 +142,7 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 				var prFromDb *Principal
 				if prFromDb, err = loader.FetchPrincipal(ctx, sub); err != nil {
 					// if prFromDb, err = loadPrincipalFromDb(ctx, ap.Config, sub); err != nil {
-					abortRespondAndLogError(c, http.StatusUnauthorized, fmt.Sprintf("principal JWT token didn't contain enough claims, but error fetching principal auth info from database/n%v", err.Error()))
+					abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("principal JWT token didn't contain enough claims, but error fetching principal auth info from database/n%v", err.Error()))
 					return
 				}
 
@@ -181,13 +165,13 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 
 		pol, err := ap.AuthrPolicies.Match(*pr, *c.Request)
 		if err != nil {
-			abortRespondAndLogError(c, http.StatusUnauthorized, err.Error())
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		if pol.Effect != PolicyEffectAllow {
 			msg := fmt.Sprintf("access to %v %v to %v denied by auth policy", c.Request.Method, c.Request.URL, pr.Login)
-			abortRespondAndLogError(c, http.StatusUnauthorized, msg)
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, msg)
 			return
 		}
 
@@ -197,9 +181,9 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 	}
 }
 
-// abortRespondAndLogError aborts processing of gin context, sends an http response with
-// the supplied message, http status code & devops-api response failure
-func abortRespondAndLogError(c *gin.Context, httpStatusCode int, msg string) {
+// abortRespondAndLogErrorGin aborts processing of gin hanlder, sends an http response with
+// the supplied message, http status code & a failure response code
+func abortRespondAndLogErrorGin(c *gin.Context, httpStatusCode int, msg string) {
 	log.Error(msg)
 	c.AsciiJSON(httpStatusCode, ResponseEnvelop{
 		Request: c.Request.URL.Path,
@@ -207,15 +191,4 @@ func abortRespondAndLogError(c *gin.Context, httpStatusCode int, msg string) {
 		Code:    1, //TODO: define constant for this
 	})
 	c.Abort()
-}
-
-// returnFirstNonZero returns the first non-zero string from he args
-func returnFirstNonZero(str1 string, strn ...string) string {
-	strs := append([]string{str1}, strn...)
-	for _, s := range strs {
-		if s != "" {
-			return s
-		}
-	}
-	return str1
 }

@@ -33,7 +33,7 @@ func (r *RedisCache) connect() error {
 }
 
 func (r RedisCache) internalSingletonKey() string {
-	fmt.Printf("%v:%v/%v", r.host, r.port, r.db)
+	return fmt.Sprintf("%v:%v/%v", r.host, r.port, r.db)
 }
 
 // method implementations
