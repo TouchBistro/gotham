@@ -10,6 +10,7 @@ import (
 type MemoryCacheKind string
 
 const (
+	Nil            MemoryCacheKind = "nil"
 	InternalMemory MemoryCacheKind = "memory"
 	Redis          MemoryCacheKind = "redis"
 )
@@ -27,6 +28,10 @@ type RedisConfig struct {
 
 var redisCacheImplMap map[string]MemoryCache
 
+var ramCacheImpl *RamCache
+
+var nilCacheImpl *NilCache
+
 // Initialize a new instance of MemoryCache from app settings
 // see InitializeWithConfig for impelementation details.
 func Initialize() (MemoryCache, error) {
@@ -39,7 +44,7 @@ func Initialize() (MemoryCache, error) {
 //
 // cache:
 //
-//	kind: redis  # redis|memory|memcached?
+//	kind: redis  # nil|redis|memory|
 //	redis_config:
 //	  host: localhost
 //	  port: 6379
@@ -54,12 +59,31 @@ func InitializeWithConfig(cfg *Config) (MemoryCache, error) {
 		config = &c
 	}
 
+	log.Debugf("cache kind is %v", config.Kind)
 	switch config.Kind {
 
+	//
+	// nil
+	//
+	case Nil:
+		if nilCacheImpl == nil {
+			nilCacheImpl = new(NilCache)
+		}
+		return nilCacheImpl, nil
+
+	//
+	// internal memory (RAM)
+	//
+	case InternalMemory:
+		if ramCacheImpl == nil {
+			ramCacheImpl = new(RamCache)
+			ramCacheImpl.initialize()
+		}
+		return ramCacheImpl, nil
+	//
 	// redis
-
+	//
 	case Redis:
-
 		// ultimate defaults
 		host := "localhost"
 		port := 6379
@@ -100,10 +124,6 @@ func InitializeWithConfig(cfg *Config) (MemoryCache, error) {
 		redisCacheImplMap[c.internalSingletonKey()] = c
 		return c, nil
 
-	// internal memory (RAM)
-	case InternalMemory:
-		return nil, fmt.Errorf("cache type %v not supported", config.Kind)
-
 	// default
 	default:
 		return nil, fmt.Errorf("cache type %v not supported", config.Kind)
@@ -121,8 +141,9 @@ func InitializeWithConfig(cfg *Config) (MemoryCache, error) {
 // redis db: cache.redis_config.db (int)
 func loadCacheConfigFromAppSettings() Config {
 
+	// set default to Nil (no-op)
 	cfg := Config{
-		Kind: Redis,
+		Kind: Nil,
 	}
 
 	if viper.IsSet("cache.kind") {

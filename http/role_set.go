@@ -58,17 +58,20 @@ func (s Set) Insert(roles ...string) {
 }
 
 // UnmarshallJSON impl custom unmarshall logic for Set
-func (r Set) UnmarshalJSON(data []byte) error {
+func (r *Set) UnmarshalJSON(data []byte) error {
+
+	tmp := make(map[string]struct{})
+
 	var s []string
 	if err := json.Unmarshal(data, &s); err != nil {
 		return err
 	}
 
 	for _, s1 := range s {
-		r[s1] = struct{}{}
+		tmp[s1] = struct{}{}
 	}
 
-	// r = &tmp
+	*r = Set(tmp)
 	return nil
 }
 
@@ -77,7 +80,7 @@ func (r Set) MarshalJSON() ([]byte, error) {
 
 	// convert this to string
 	var s []string
-	for k, _ := range r {
+	for k := range r {
 		s = append(s, k)
 	}
 
@@ -97,27 +100,4 @@ func RoleSetFrom(roles ...string) Set {
 		m[s] = struct{}{}
 	}
 	return m
-}
-
-// RoleSetFromRawJsonArray returns a Role Definitions map from the supplied json Raw
-func RoleSetFromRawJsonArray(raw json.RawMessage) (Set, error) {
-	r := Set{}
-	if err := json.Unmarshal(raw, &r); err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
-// RoleDefsFromRawJsonMap returns a Role Definitions map from the supplied json Raw
-func RoleDefsFromRawJsonMap(raw json.RawMessage) (map[string]Set, error) {
-	m := make(map[string]Set)
-	tmp := make(map[string][]string)
-	if err := json.Unmarshal(raw, &tmp); err != nil {
-		return nil, err
-	} else {
-		for k, v := range tmp {
-			m[k] = RoleSetFrom(v...)
-		}
-	}
-	return m, nil
 }

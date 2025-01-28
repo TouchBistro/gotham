@@ -2,7 +2,6 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"time"
 
@@ -36,6 +35,22 @@ func (r RedisCache) internalSingletonKey() string {
 	return fmt.Sprintf("%v:%v/%v", r.host, r.port, r.db)
 }
 
+// func (r *RedisCache) ser(o any) ([]byte, error) {
+// 	var buf bytes.Buffer
+// 	enc := gob.NewEncoder(&buf)
+// 	err := enc.Encode(o)
+// 	if err != nil {
+// 		return nil, err
+// 	}
+// 	return buf.Bytes(), nil
+// }
+
+// func (r *RedisCache) de(data []byte, obj any) error {
+// 	buf := bytes.NewBuffer(data)
+// 	dec := gob.NewDecoder(buf)
+// 	return dec.Decode(obj)
+// }
+
 // method implementations
 
 func (r *RedisCache) Put(ctx context.Context, key string, val any) error {
@@ -43,35 +58,58 @@ func (r *RedisCache) Put(ctx context.Context, key string, val any) error {
 }
 
 func (r *RedisCache) PutWithTtl(ctx context.Context, key string, val any, expiry time.Duration) error {
-
-	bytes, err := json.Marshal(val)
-	if err != nil {
-		return err
+	var bytes []byte
+	switch rval := val.(type) {
+	case []byte:
+		bytes = rval //val.([]byte)
+	case string:
+		bytes = []byte(rval)
+	default:
+		var err error
+		g := GobSerde{}
+		if bytes, err = g.ser(val); err != nil {
+			return err
+		}
+		// if bytes, err = GobSerde{}.ser(val); err != nil {
+		// 	return err
+		// }
 	}
 
 	cmd := r.client.Set(ctx, key, bytes, expiry)
 	if _, err := cmd.Result(); err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func (r *RedisCache) Fetch(ctx context.Context, key string, val any) error {
-	cmd := r.client.Get(ctx, key)
-	v, err := cmd.Result()
-	if err != nil {
+	if bytes, err := r.client.Get(ctx, key).Bytes(); err != nil {
 		return err
+	} else {
+		switch rval := val.(type) {
+		// case []byte: // todo remove
+		// 	val = bytes
+		// 	return nil
+		case *[]byte:
+			*rval = bytes
+			return nil
+		// case string: // todo remove
+		// 	val = string(bytes)
+		// 	return nil
+		case *string:
+			str := string(bytes)
+			val = &str
+			return nil
+		default:
+			return GobSerde{}.de(bytes, val) //TODO to be improved into a more generic SerDe impl
+		}
 	}
-
-	if err := json.Unmarshal([]byte(v), &val); err != nil {
-		return err
-	}
-	return nil
 }
 
 func (r *RedisCache) FetchWithTtl(ctx context.Context, key string, val any) (*time.Duration, error) {
 
-	if err := r.Fetch(ctx, key, &val); err != nil {
+	if err := r.Fetch(ctx, key, val); err != nil {
 		return nil, err
 	}
 

@@ -1,7 +1,6 @@
 package http
 
 import (
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,13 +36,13 @@ const (
 )
 
 type PolicyItem struct {
-	Priority    int64           `json:"-"`        // assigned at parse
-	Name        string          `json:"name"`     // human-readable name for this policy item
-	HttpMethod  string          `json:"method"`   // an http method, or everything if not supplied
-	HttpPath    string          `json:"url"`      // a pattern or regex that matches the path/object
-	Effect      PolicyEffect    `json:"effect"`   // allow | deny
-	SubjectsRaw json.RawMessage `json:"subjects"` // a set of subjects to whom this applies; uses custom unmarshall logic
-	Subjects    Set             `json:"-"`
+	Priority   int64        `json:"-"`        // assigned at parse
+	Name       string       `json:"name"`     // human-readable name for this policy item
+	HttpMethod string       `json:"method"`   // an http method, or everything if not supplied
+	HttpPath   string       `json:"url"`      // a pattern or regex that matches the path/object
+	Effect     PolicyEffect `json:"effect"`   // allow | deny
+	Subjects   Set          `json:"subjects"` // a set of subjects to whom this applies; uses custom unmarshall logic
+	// SubjectsRaw json.RawMessage `json:"subjects"`
 }
 
 type Policies []PolicyItem

@@ -25,7 +25,6 @@ type Config struct {
 
 // LoadPolicyFromFile reads the auth policies from the supplied file path
 func LoadPolicyFromFile(path string) (*AuthPolicy, error) {
-
 	cfg := path
 	ap := &AuthPolicy{}
 
@@ -39,34 +38,7 @@ func LoadPolicyFromFile(path string) (*AuthPolicy, error) {
 		return loadPolicyDefault(), errors.Wrapf(err, "error reading auth policy file: %v", cfg)
 	}
 
-	ap.Config.Roles.AdminRoles, err = RoleSetFromRawJsonArray(ap.Config.Roles.AdminGroupsRaw)
-	if err != nil {
-		return nil, err
-	}
-	ap.Config.Roles.SuperAdminRoles, err = RoleSetFromRawJsonArray(ap.Config.Roles.SuperAdminGroupsRaw)
-	if err != nil {
-		return nil, err
-	}
-
-	ap.Config.Roles.Definitions, err = RoleDefsFromRawJsonMap(ap.Config.Roles.DefinitionsRaw)
-	if err != nil {
-		return nil, err
-	}
-
-	ap.Config.Roles.AdminGroupsRaw = nil
-	ap.Config.Roles.SuperAdminGroupsRaw = nil
-
-	for n, pol := range ap.AuthrPolicies {
-		if r, err := RoleSetFromRawJsonArray(pol.SubjectsRaw); err != nil {
-			return nil, err
-		} else {
-			ap.AuthrPolicies[n].Subjects = r
-		}
-		ap.AuthrPolicies[n].Priority = int64(n)
-		ap.AuthrPolicies[n].SubjectsRaw = nil
-	}
-
-	log.Infof("loaded %v policies", len(ap.AuthrPolicies))
+	log.Debugf("loaded %v policies", len(ap.AuthrPolicies))
 	return ap, nil
 }
 

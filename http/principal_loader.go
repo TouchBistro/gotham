@@ -26,6 +26,8 @@ func (f PrincipalLoaderFunc) FetchPrincipal(ctx context.Context, sub string) (*P
 }
 
 // JwtClaimsPrincipalLoader implements PrincipalLoader from claims of a JWT token
+// //
+// //
 type JwtClaimsPrincipalLoader struct {
 	config Config
 	jwt    string
@@ -149,6 +151,8 @@ func (l JwtClaimsPrincipalLoader) FetchPrincipal(ctx context.Context, subject st
 }
 
 // CachePrincipalLoader implements PrincipalLoader from a memory cache
+// //
+// //
 type CachePrincipalLoader struct {
 	KeyPrefix string
 	Cache     cache.MemoryCache
