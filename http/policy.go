@@ -42,7 +42,6 @@ type PolicyItem struct {
 	HttpPath   string       `json:"url"`      // a pattern or regex that matches the path/object
 	Effect     PolicyEffect `json:"effect"`   // allow | deny
 	Subjects   Set          `json:"subjects"` // a set of subjects to whom this applies; uses custom unmarshall logic
-	// SubjectsRaw json.RawMessage `json:"subjects"`
 }
 
 type Policies []PolicyItem
