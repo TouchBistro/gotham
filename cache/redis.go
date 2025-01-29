@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -35,22 +36,6 @@ func (r RedisCache) internalSingletonKey() string {
 	return fmt.Sprintf("%v:%v/%v", r.host, r.port, r.db)
 }
 
-// func (r *RedisCache) ser(o any) ([]byte, error) {
-// 	var buf bytes.Buffer
-// 	enc := gob.NewEncoder(&buf)
-// 	err := enc.Encode(o)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	return buf.Bytes(), nil
-// }
-
-// func (r *RedisCache) de(data []byte, obj any) error {
-// 	buf := bytes.NewBuffer(data)
-// 	dec := gob.NewDecoder(buf)
-// 	return dec.Decode(obj)
-// }
-
 // method implementations
 
 func (r *RedisCache) Put(ctx context.Context, key string, val any) error {
@@ -70,9 +55,6 @@ func (r *RedisCache) PutWithTtl(ctx context.Context, key string, val any, expiry
 		if bytes, err = g.ser(val); err != nil {
 			return err
 		}
-		// if bytes, err = GobSerde{}.ser(val); err != nil {
-		// 	return err
-		// }
 	}
 
 	cmd := r.client.Set(ctx, key, bytes, expiry)
@@ -85,6 +67,9 @@ func (r *RedisCache) PutWithTtl(ctx context.Context, key string, val any, expiry
 
 func (r *RedisCache) Fetch(ctx context.Context, key string, val any) error {
 	if bytes, err := r.client.Get(ctx, key).Bytes(); err != nil {
+		if errors.Is(err, redisv9.Nil) {
+			return &CacheMissError{key, err}
+		}
 		return err
 	} else {
 		switch rval := val.(type) {

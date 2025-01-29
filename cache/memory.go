@@ -45,7 +45,7 @@ func (r *RamCache) Fetch(ctx context.Context, key string, val any) error {
 		ele.Set(reflect.ValueOf(_val))
 		return nil
 	}
-	return errors.Errorf("key doesn't exists")
+	return &CacheMissError{key, errors.Errorf("key not found in ram cache")}
 }
 
 func (r *RamCache) FetchWithTtl(ctx context.Context, key string, val any) (*time.Duration, error) {

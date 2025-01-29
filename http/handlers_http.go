@@ -126,22 +126,21 @@ func awsalbAuthHttpMiddleware(ap AuthPolicy, loader PrincipalLoader) Middleware 
 	return MiddlewareFunc(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+			log.Debugf("processing auth for %v %v", r.Method, r.URL.Path)
+
 			// ensure the request is upgraded with a value map
 			r = upgradeRequestContext(r)
 			ctx := r.Context()
 
-			log.Debugf("processing auth for %v %v", r.Method, r.URL.Path)
+			var err error
 
-			subClaimHeader := ap.Config.JwtConfig.SubClaimHeader // get the sub claim header
-			subClaimHeaderVals := r.Header[subClaimHeader]
-			if len(subClaimHeaderVals) == 0 {
+			var sub string
+			if sub, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.SubClaimHeader, 0); err != nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "no sub claim value found from header")
 				return
 			}
-			sub := subClaimHeaderVals[0] // grab the first one
 
 			// fetch cached principal
-			var err error
 			var pr *Principal
 			prefix := "principal"
 			cache, err := cache.Initialize()
@@ -153,14 +152,11 @@ func awsalbAuthHttpMiddleware(ap AuthPolicy, loader PrincipalLoader) Middleware 
 			cloader := CachePrincipalLoader{prefix, cache}
 			if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
 
-				// if err, fetch principal from the claims found inside the id_token
-				idTokenHeader := ap.Config.JwtConfig.IdTokenHeader // get the id_token header
-				oidcDataHeaderVals := r.Header[idTokenHeader]
-				if len(oidcDataHeaderVals) == 0 {
+				var oidcDataHeaderVal string
+				if sub, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
 					abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "no id token value found from header")
 					return
 				}
-				oidcDataHeaderVal := oidcDataHeaderVals[0]
 
 				jloader := JwtClaimsPrincipalLoader{
 					config: ap.Config,

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -25,4 +26,15 @@ type MemoryCache interface {
 
 	// delete the data for the supplied key
 	Delete(context.Context, string) (int64, error)
+}
+
+// CacheMissError represents a cache miss; a defined err type so
+// clients can distinguish between a cache-miss or other errors
+type CacheMissError struct {
+	key   string
+	cause error
+}
+
+func (e *CacheMissError) Error() string {
+	return fmt.Sprintf("cache-miss: no cached value found for key %v", e.key)
 }

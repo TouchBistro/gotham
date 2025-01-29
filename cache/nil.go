@@ -29,11 +29,11 @@ func (r *NilCache) PutWithTtlS(ctx context.Context, key string, val string, expi
 }
 
 func (r *NilCache) Fetch(ctx context.Context, key string, val any) error {
-	return errors.Errorf("cache miss, nil cache in use")
+	return &CacheMissError{key, errors.Errorf("cache miss, nil cache in use")}
 }
 
 func (r *NilCache) FetchWithTtl(ctx context.Context, key string, val any) (*time.Duration, error) {
-	return nil, errors.Errorf("cache miss, nil cache in use")
+	return nil, &CacheMissError{key, errors.Errorf("cache miss, nil cache in use")}
 }
 
 func (r *NilCache) Delete(ctx context.Context, key string) (int64, error) {

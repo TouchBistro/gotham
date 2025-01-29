@@ -93,19 +93,19 @@ func actionProcessingGinHandler(actions []PolicyAction) []gin.HandlerFunc {
 func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc {
 	return func(c *gin.Context) {
 
-		ctx := c.Request.Context()
 		log.Debugf("processing auth for %v %v", c.Request.Method, c.Request.URL.Path)
 
-		subClaimHeader := ap.Config.JwtConfig.SubClaimHeader // get the sub claim header
-		subClaimHeaderVals := c.Request.Header[subClaimHeader]
-		if len(subClaimHeaderVals) == 0 {
+		ctx := c.Request.Context()
+
+		var err error
+
+		var sub string
+		if sub, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.SubClaimHeader, 0); err != nil {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no sub claim value found from header")
 			return
 		}
-		sub := subClaimHeaderVals[0] // grab the first one
 
 		// fetch cached principal
-		var err error
 		var pr *Principal
 		prefix := "principal"
 		cache, err := cache.Initialize()
@@ -117,14 +117,11 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 		cloader := CachePrincipalLoader{prefix, cache}
 		if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
 
-			// if err, fetch principal from the claims found inside the id_token
-			idTokenHeader := ap.Config.JwtConfig.IdTokenHeader // get the id_token header
-			oidcDataHeaderVals := c.Request.Header[idTokenHeader]
-			if len(oidcDataHeaderVals) == 0 {
+			var oidcDataHeaderVal string
+			if sub, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
 				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no id token value found from header")
 				return
 			}
-			oidcDataHeaderVal := oidcDataHeaderVals[0]
 
 			jloader := JwtClaimsPrincipalLoader{
 				config: ap.Config,
