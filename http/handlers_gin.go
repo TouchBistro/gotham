@@ -118,7 +118,7 @@ func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc
 		if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
 
 			var oidcDataHeaderVal string
-			if sub, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
+			if oidcDataHeaderVal, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
 				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no id token value found from header")
 				return
 			}

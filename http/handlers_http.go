@@ -153,7 +153,7 @@ func awsalbAuthHttpMiddleware(ap AuthPolicy, loader PrincipalLoader) Middleware 
 			if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
 
 				var oidcDataHeaderVal string
-				if sub, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
+				if oidcDataHeaderVal, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
 					abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "no id token value found from header")
 					return
 				}
