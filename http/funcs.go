@@ -9,7 +9,6 @@ import (
 // httpRequestHeaderValue returns the n-th value (0-based index) for the supplied
 // request header name
 func httpRequestHeaderValue(r *http.Request, name string, index int) (string, error) {
-	// subClaimHeader := ap.Config.JwtConfig.SubClaimHeader // get the sub claim header
 	vals := r.Header[name]
 	if index > len(vals)-1 {
 		return "", errors.Errorf("no value for header %v index %v exists", name, index)
