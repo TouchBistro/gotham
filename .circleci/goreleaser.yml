@@ -1,0 +1,24 @@
+project_name: gotham
+
+builds:
+  - skip: true
+
+release:
+  github:
+    owner: TouchBistro
+    name: gotham
+  name_template: "{{.ProjectName}}-v{{.Version}}"
+  skip_upload: true
+  header: |
+    ## Module: {{ .Tag }}
+    This release covers the following updates.
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - '^docs:'
+      - '^test:'
+
+source:
+  enabled: true
