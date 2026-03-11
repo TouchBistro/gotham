@@ -57,7 +57,9 @@ jobs:
             .circleci/tagger.sh
       - run:
           name: Cut release in github with goreleaser
-          command: goreleaser release -f .circleci/goreleaser.yml
+          command: |
+            export SOURCE_DATE_EPOCH=$(date +%s)
+            goreleaser release -f .circleci/goreleaser.yml
 
 workflows:
   build-test-release:
@@ -72,4 +74,3 @@ workflows:
             branches:
               only:
                 - master
-                - feat/devops-8467
