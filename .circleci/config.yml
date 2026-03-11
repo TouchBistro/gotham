@@ -1,0 +1,76 @@
+version: 2.1
+
+orbs:
+  aws-cli: circleci/aws-cli@5.4.1
+
+cache_key: &cache_key gotham-20260311-{{ checksum "go.sum" }}
+
+executors:
+  docker-go:
+    docker:
+      - image: 651264383976.dkr.ecr.us-east-1.amazonaws.com/cimg-go:1.25-build
+        aws_auth:
+          oidc_role_arn: ${AWS_IAM_ROLE}
+
+commands:
+  build:
+    steps:
+      - run:
+          name: Build code
+          command: make build
+  lint:
+    steps:
+      - restore_cache:
+          name: Restore dep cache
+          keys:
+            - *cache_key
+      - run:
+          name: Run linter
+          command: make lint
+      - save_cache:
+          name: Save dep cache
+          key: *cache_key
+          paths:
+            - ~/go/pkg
+  test:
+    steps:
+      - run:
+          name: Run tests
+          command: make test
+
+jobs:
+  build-lint-test:
+    executor: docker-go
+    steps:
+      - checkout
+      - build
+      - lint
+      - test
+
+  release:
+    executor: docker-go
+    steps:
+      - checkout
+      - run:
+          name: Tag release in github
+          command: |
+            .circleci/tagger.sh
+      - run:
+          name: Cut release in github with goreleaser
+          command: |
+            export SOURCE_DATE_EPOCH=$(date +%s)
+            goreleaser release -f .circleci/goreleaser.yml
+
+workflows:
+  build-test-release:
+    jobs:
+      - build-lint-test:
+          context: org-global
+      - release:
+          context: org-global
+          requires:
+            - build-lint-test
+          filters:
+            branches:
+              only:
+                - master

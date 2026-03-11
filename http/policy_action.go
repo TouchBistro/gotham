@@ -22,20 +22,14 @@ type PolicyAction struct {
 
 func (p PolicyAction) toGinHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		p.apply(c.Request)
-	}
-}
-
-func (p PolicyAction) toHttpHandler() http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		p.apply(r)
+		_ = p.apply(c.Request)
 	}
 }
 
 func (p PolicyAction) toHttpMiddlewareFunc() MiddlewareFunc {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			p.apply(r)
+			_ = p.apply(r)
 			next.ServeHTTP(w, r)
 		})
 	}

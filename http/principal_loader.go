@@ -76,8 +76,8 @@ func (l JwtClaimsPrincipalLoader) FetchPrincipal(ctx context.Context, subject st
 		if strings.Contains(login, "@") {
 			alias = login[0:strings.Index(login, "@")]
 		}
-		alias = strings.Replace(alias, "+", "_", -1) // replace any + with _
-		alias = strings.Replace(alias, ".", "_", -1) // replace any . with _
+		alias = strings.ReplaceAll(alias, "+", "_") // replace any + with _
+		alias = strings.ReplaceAll(alias, ".", "_") // replace any . with _
 	}
 
 	var fname, lname, email string
