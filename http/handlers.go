@@ -7,10 +7,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+// contextKey is an unexported type for context keys in this package,
+// preventing collisions with keys defined in other packages.
+type contextKey string
+
 const (
-	ContextMapKey       string = "context-map" // key used by net/http handlers to store a context map context wrapper value map
-	ContextKeyAlias     string = "alias"
-	ContextKeyPrincipal string = "principal"
+	ContextMapKey       contextKey = "context-map" // key used by net/http handlers to store a context map context wrapper value map
+	ContextKeyAlias     string     = "alias"
+	ContextKeyPrincipal string     = "principal"
 )
 
 // value_map checks if the context has a Value of the required map type
