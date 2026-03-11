@@ -32,7 +32,7 @@ func (s Set) ContainsSet(other Set) bool {
 		return ok
 	}
 
-	for r, _ := range other {
+	for r := range other {
 		if _, ok := s[r]; ok {
 			return true
 		}
@@ -43,7 +43,7 @@ func (s Set) ContainsSet(other Set) bool {
 // ToStringSlice converts the Set to a []string
 func (s Set) ToStringSlice() []string {
 	var slice []string
-	for k, _ := range s {
+	for k := range s {
 		slice = append(slice, k)
 	}
 	slices.Sort(slice)

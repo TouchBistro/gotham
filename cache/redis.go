@@ -83,8 +83,7 @@ func (r *RedisCache) Fetch(ctx context.Context, key string, val any) error {
 		// 	val = string(bytes)
 		// 	return nil
 		case *string:
-			str := string(bytes)
-			val = &str
+			*rval = string(bytes)
 			return nil
 		default:
 			return GobSerde{}.de(bytes, val) //TODO to be improved into a more generic SerDe impl

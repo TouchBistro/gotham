@@ -249,5 +249,5 @@ func abortRespondAndLogErrorHttp(w http.ResponseWriter, r *http.Request, httpSta
 
 	// set response
 	w.WriteHeader(httpStatusCode)
-	w.Write(bytes)
+	_, _ = w.Write(bytes)
 }
