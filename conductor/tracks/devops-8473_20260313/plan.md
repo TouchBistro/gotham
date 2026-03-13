@@ -22,11 +22,11 @@ Goal: Establish the target package skeleton, add the required `lib/pq` dependenc
 
 Tasks:
 
-- [ ] Task: Create directory `sql/qb/` and `sql/qb/tmp/` in the gotham repository. Create `sql/qb/tmp/ptr.go` containing `ToStringPtr` and `ToInt64Ptr` helpers with a comment noting this is a temporary holding package pending refactoring. (TDD: Write a test `sql/qb/tmp/ptr_test.go` that asserts both functions return a pointer to the supplied value — confirm tests fail, implement, confirm tests pass.)
+- [x] Task: Create directory `sql/qb/` and `sql/qb/tmp/` in the gotham repository. Create `sql/qb/tmp/ptr.go` containing `ToStringPtr` and `ToInt64Ptr` helpers with a comment noting this is a temporary holding package pending refactoring. (TDD: Write a test `sql/qb/tmp/ptr_test.go` that asserts both functions return a pointer to the supplied value — confirm tests fail, implement, confirm tests pass.) [43fbfad]
 
-- [ ] Task: Add `github.com/lib/pq` as a direct dependency to `go.mod` by running `go get github.com/lib/pq` from the gotham module root. Verify `go.mod` and `go.sum` are updated. (TDD: No logic test needed here; verification is that `go build ./...` succeeds after the dependency is added.)
+- [x] Task: Add `github.com/lib/pq` as a direct dependency to `go.mod` by running `go get github.com/lib/pq` from the gotham module root. Verify `go.mod` and `go.sum` are updated. (TDD: No logic test needed here; verification is that `go build ./...` succeeds after the dependency is added.) [43fbfad]
 
-- [ ] Task: Update `conductor/tech-stack.md` to document `github.com/lib/pq` as a new direct dependency with its purpose (PostgreSQL array parameter support via `pq.Array`).
+- [x] Task: Update `conductor/tech-stack.md` to document `github.com/lib/pq` as a new direct dependency with its purpose (PostgreSQL array parameter support via `pq.Array`). [43fbfad]
 
 - [ ] Verification: Run `go build ./sql/qb/tmp/...` and `go test ./sql/qb/tmp/...` — both must pass. Confirm `go.mod` lists `github.com/lib/pq`. [checkpoint marker]
 
