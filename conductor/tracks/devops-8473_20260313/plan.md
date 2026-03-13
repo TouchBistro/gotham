@@ -70,7 +70,7 @@ Goal: Write the `sql/qb/README.md` explaining package features, struct tag conve
 
 Tasks:
 
-- [ ] Task: Write `sql/qb/README.md`. The document must cover:
+- [x] Task: Write `sql/qb/README.md`. The document must cover:
   - Package purpose and target use case.
   - Supported CRUD operations and how they map to PostgreSQL.
   - `qb` struct tag syntax reference table: tag key, token values (`pk`, `pkey`, `ops=r/a/w`, `type=`, `as=`), and their meaning.
@@ -78,8 +78,8 @@ Tasks:
   - How to initialize a `Table[T]` using `ForTable` (with and without explicit table name override).
   - How to initialize a `Query[T]` using `ForQuery` for multi-table join scenarios.
   - A minimal self-contained Go code example showing struct definition with tags, `ForTable` call, and a `Select` call.
-  - Note on the `tmp` sub-package and its temporary nature.
+  - Note on the `tmp` sub-package and its temporary nature. [347b453]
 
-- [ ] Task: Verify `sql/qb/qb.go` godoc comment is present and accurate. Update the package-level comment if needed to reflect the new import path (`github.com/TouchBistro/gotham/sql/qb`).
+- [x] Task: Verify `sql/qb/qb.go` godoc comment is present and accurate. Update the package-level comment if needed to reflect the new import path (`github.com/TouchBistro/gotham/sql/qb`). [347b453]
 
 - [ ] Verification: Run `go doc github.com/TouchBistro/gotham/sql/qb` and confirm the package doc renders correctly. Confirm `sql/qb/README.md` is present. [checkpoint marker]
