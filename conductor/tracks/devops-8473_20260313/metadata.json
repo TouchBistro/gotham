@@ -1,0 +1,9 @@
+{
+  "id": "devops-8473_20260313",
+  "description": "gotham: add querybuilder (qb) to gotham",
+  "type": "feature",
+  "jira_ticket": "DEVOPS-8473",
+  "branch": "feat/devops-8473",
+  "created_at": "2026-03-13T00:00:00Z",
+  "status": "pending"
+}
