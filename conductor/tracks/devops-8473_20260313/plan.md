@@ -64,7 +64,7 @@ Tasks:
 
 ---
 
-## Phase 3: Documentation
+## Phase 3: Documentation [checkpoint: e41adee]
 
 Goal: Write the `sql/qb/README.md` explaining package features, struct tag conventions, initialization patterns, and usage examples.
 
