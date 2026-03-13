@@ -38,27 +38,27 @@ Goal: Copy all active source files from the origin package into `sql/qb/`, updat
 
 Tasks:
 
-- [ ] Task: Copy `qb.go` to `sql/qb/qb.go`. Update `package` declaration if needed. No logic changes. (This is the godoc-only file — no test needed beyond compilation.)
+- [x] Task: Copy `qb.go` to `sql/qb/qb.go`. Update `package` declaration if needed. No logic changes. (This is the godoc-only file — no test needed beyond compilation.) [f58c528]
 
-- [ ] Task: Copy `entity.go` to `sql/qb/entity.go`. Update package declaration. Verify no external imports are present. (TDD: Write `sql/qb/entity_test.go` testing `Convert` and `Convert0` with a minimal `Entity` stub — confirm tests fail, implement copy, confirm tests pass.)
+- [x] Task: Copy `entity.go` to `sql/qb/entity.go`. Update package declaration. Verify no external imports are present. (TDD: Write `sql/qb/entity_test.go` testing `Convert` and `Convert0` with a minimal `Entity` stub — confirm tests fail, implement copy, confirm tests pass.) [f58c528]
 
-- [ ] Task: Copy `join.go` to `sql/qb/join.go`. Update package declaration. No external imports. (TDD: Write `sql/qb/join_test.go` asserting `LeftJoin.ToJoinString()`, `RightJoin.ToJoinString()`, and `InnerJoin.ToJoinString()` each return `""` — confirm tests fail, implement copy, confirm tests pass.)
+- [x] Task: Copy `join.go` to `sql/qb/join.go`. Update package declaration. No external imports. (TDD: Write `sql/qb/join_test.go` asserting `LeftJoin.ToJoinString()`, `RightJoin.ToJoinString()`, and `InnerJoin.ToJoinString()` each return `""` — confirm tests fail, implement copy, confirm tests pass.) [f58c528]
 
-- [ ] Task: Copy `where.go` to `sql/qb/where.go`. Update package declaration. No external imports. (TDD: Write `sql/qb/where_test.go` asserting `WhereAll{}.WhereClause()` returns `"WHERE 1=1"`, `WhereNone{}.WhereClause()` returns `"WHERE 1=0"`, and `WhereString("WHERE x=1").WhereClause()` returns `"WHERE x=1"` — confirm tests fail, implement copy, confirm tests pass.)
+- [x] Task: Copy `where.go` to `sql/qb/where.go`. Update package declaration. No external imports. (TDD: Write `sql/qb/where_test.go` asserting `WhereAll{}.WhereClause()` returns `"WHERE 1=1"`, `WhereNone{}.WhereClause()` returns `"WHERE 1=0"`, and `WhereString("WHERE x=1").WhereClause()` returns `"WHERE x=1"` — confirm tests fail, implement copy, confirm tests pass.) [f58c528]
 
-- [ ] Task: Copy `result.go` to `sql/qb/result.go`. Update package declaration. No external imports. (No dedicated test needed; compilation confirms the file is valid.)
+- [x] Task: Copy `result.go` to `sql/qb/result.go`. Update package declaration. No external imports. (No dedicated test needed; compilation confirms the file is valid.) [f58c528]
 
-- [ ] Task: Copy `column_metadata.go` to `sql/qb/column_metadata.go`. Update package declaration. Replace import of `github.com/sirupsen/logrus` (already in gotham's `go.mod`; no change to `go.mod` needed). (TDD: Migrate `column_metadata_test.go` to `sql/qb/column_metadata_test.go`, update package declaration — confirm tests fail, implement copy, confirm tests pass.)
+- [x] Task: Copy `column_metadata.go` to `sql/qb/column_metadata.go`. Update package declaration. Replace import of `github.com/sirupsen/logrus` (already in gotham's `go.mod`; no change to `go.mod` needed). (TDD: Migrate `column_metadata_test.go` to `sql/qb/column_metadata_test.go`, update package declaration — confirm tests fail, implement copy, confirm tests pass.) [f58c528]
 
-- [ ] Task: Copy `table.go` to `sql/qb/table.go`. Update package declaration. Replace `github.com/TouchBistro/devops-api/tbutil` import with `github.com/TouchBistro/gotham/sql/qb/tmp`. Replace all `tbutil.ToStringPtr(...)` call sites with `tmp.ToStringPtr(...)`. Retain `github.com/lib/pq`, `github.com/pkg/errors`, and `github.com/sirupsen/logrus` imports. (TDD: Migrate `table_test.go` to `sql/qb/table_test.go`, update package declaration — confirm tests fail, implement copy+refactor, confirm tests pass. Tests cover: `TestTableMetadata`, `TestTableMetadata_Complex`, `TestColumnMetadata_SqlType`, `TestGenerateSelectSql`, `TestGenerateInsertSqlTemplate`, `TestGenerateUpdateSqlTemplate`, `TestGenerateDeleteSqlTemplate`.)
+- [x] Task: Copy `table.go` to `sql/qb/table.go`. Update package declaration. Replace `github.com/TouchBistro/devops-api/tbutil` import with `github.com/TouchBistro/gotham/sql/qb/tmp`. Replace all `tbutil.ToStringPtr(...)` call sites with `tmp.ToStringPtr(...)`. Retain `github.com/lib/pq`, `github.com/pkg/errors`, and `github.com/sirupsen/logrus` imports. (TDD: Migrate `table_test.go` to `sql/qb/table_test.go`, update package declaration — confirm tests fail, implement copy+refactor, confirm tests pass. Tests cover: `TestTableMetadata`, `TestTableMetadata_Complex`, `TestColumnMetadata_SqlType`, `TestGenerateSelectSql`, `TestGenerateInsertSqlTemplate`, `TestGenerateUpdateSqlTemplate`, `TestGenerateDeleteSqlTemplate`.) [f58c528]
 
-- [ ] Task: Copy `query.go` to `sql/qb/query.go`. Update package declaration. Replace `github.com/TouchBistro/devops-api/tbutil` import with `github.com/TouchBistro/gotham/sql/qb/tmp`. Replace all `tbutil.ToStringPtr(...)` call sites with `tmp.ToStringPtr(...)`. Retain `github.com/lib/pq`, `github.com/pkg/errors`, and `github.com/sirupsen/logrus` imports. (TDD: Write `sql/qb/query_test.go` testing `ForQuery` initialization with a valid composite struct containing `LeftJoin`, `RightJoin`, or `InnerJoin` fields and asserting the generated `selectStmt` is non-empty and structurally correct — confirm tests fail, implement copy+refactor, confirm tests pass.)
+- [x] Task: Copy `query.go` to `sql/qb/query.go`. Update package declaration. Replace `github.com/TouchBistro/devops-api/tbutil` import with `github.com/TouchBistro/gotham/sql/qb/tmp`. Replace all `tbutil.ToStringPtr(...)` call sites with `tmp.ToStringPtr(...)`. Retain `github.com/lib/pq`, `github.com/pkg/errors`, and `github.com/sirupsen/logrus` imports. (TDD: Write `sql/qb/query_test.go` testing `ForQuery` initialization with a valid composite struct containing `LeftJoin`, `RightJoin`, or `InnerJoin` fields and asserting the generated `selectStmt` is non-empty and structurally correct — confirm tests fail, implement copy+refactor, confirm tests pass.) [f58c528]
 
-- [ ] Task: Confirm `table_join.go` and `functions.go` are NOT present in `sql/qb/` (they contain only commented-out code per FR-3). This is a verification-only step; no files to create.
+- [x] Task: Confirm `table_join.go` and `functions.go` are NOT present in `sql/qb/` (they contain only commented-out code per FR-3). This is a verification-only step; no files to create. [f58c528]
 
-- [ ] Task: Run `go vet ./sql/qb/...` and resolve any reported issues.
+- [x] Task: Run `go vet ./sql/qb/...` and resolve any reported issues. [f58c528]
 
-- [ ] Task: Run `go test -cover ./sql/qb/...` and verify coverage is >90%. Identify any uncovered paths and add tests to close gaps.
+- [x] Task: Run `go test -cover ./sql/qb/...` and verify coverage is >90%. Identify any uncovered paths and add tests to close gaps. Coverage: 94.9% [f58c528]
 
 - [ ] Verification: Run `go build ./...` and `go test ./...` from the repository root — all packages must compile and all tests must pass. Coverage for `sql/qb` must be >90%. [checkpoint marker]
 
