@@ -19,6 +19,7 @@
 | `github.com/spf13/viper` | Configuration management |
 | `github.com/pkg/errors` | Error wrapping with stack traces |
 | `github.com/TouchBistro/goutils` | Internal TouchBistro Go utilities |
+| `github.com/lib/pq` | PostgreSQL driver — provides `pq.Array` for passing Go slices as PostgreSQL array parameters in batch INSERT, UPDATE, and DELETE operations (used by `sql/qb`) |
 
 ## Package Structure
 
@@ -27,6 +28,9 @@ gotham/
 ├── http/          # Auth policy, JWT, principals, roles, middleware, gin & net/http handlers
 ├── cache/         # Cache interface + memory, Redis, nil implementations + serde helpers
 ├── util/          # JWT and general utility helpers
+├── sql/
+│   └── qb/        # Query builder: automated CRUD SQL generation for PostgreSQL (uses pq.Array for batch ops)
+│       └── tmp/   # Temporary holding package for pointer helpers (pending future refactoring)
 ├── doc.go         # Package-level godoc
 ├── go.mod / go.sum
 └── Makefile
