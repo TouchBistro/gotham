@@ -1,6 +1,7 @@
 package qb
 
 import (
+	"context"
 	"reflect"
 	"testing"
 )
@@ -299,7 +300,7 @@ func TestInsert_EmptyEntities_ReturnsZero(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	// Pass nil db — should return 0, nil before opening TX since entities is empty
-	rowsAffected, err := tbl.Insert(nil, nil)
+	rowsAffected, err := tbl.Insert(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty insert: %v", err)
 	}
@@ -313,7 +314,7 @@ func TestUpdate_EmptyEntities_ReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	rowsAffected, err := tbl.Update(nil, nil)
+	rowsAffected, err := tbl.Update(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty update: %v", err)
 	}
@@ -327,7 +328,7 @@ func TestDelete_EmptyEntities_ReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	rowsAffected, err := tbl.Delete(nil, nil)
+	rowsAffected, err := tbl.Delete(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty delete: %v", err)
 	}
@@ -341,7 +342,7 @@ func TestInsertTx_EmptyEntities_ReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	rowsAffected, err := tbl.InsertTx(nil, nil)
+	rowsAffected, err := tbl.InsertTx(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty InsertTx: %v", err)
 	}
@@ -355,7 +356,7 @@ func TestUpdateTx_EmptyEntities_ReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	rowsAffected, err := tbl.UpdateTx(nil, nil)
+	rowsAffected, err := tbl.UpdateTx(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty UpdateTx: %v", err)
 	}
@@ -369,7 +370,7 @@ func TestDeleteTx_EmptyEntities_ReturnsZero(t *testing.T) {
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	rowsAffected, err := tbl.DeleteTx(nil, nil)
+	rowsAffected, err := tbl.DeleteTx(context.TODO(), nil)
 	if err != nil {
 		t.Errorf("unexpected error for empty DeleteTx: %v", err)
 	}

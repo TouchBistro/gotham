@@ -156,7 +156,7 @@ func TestSelectWhere_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -179,7 +179,7 @@ func TestSelect_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -201,7 +201,7 @@ func TestSelectWhere_QueryError(t *testing.T) {
 		queryErr: errors.New("query error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -221,7 +221,7 @@ func TestSelectWhere_WithArgs(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -244,7 +244,7 @@ func TestSelectTx_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -259,10 +259,10 @@ func TestSelectTx_EmptyRows(t *testing.T) {
 
 	result, err := tbl.SelectTx(ctx, tx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 results, got %d", len(result))
@@ -275,7 +275,7 @@ func TestSelectWhereTx_WithArgs(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -290,10 +290,10 @@ func TestSelectWhereTx_WithArgs(t *testing.T) {
 
 	result, err := tbl.SelectWhereTx(ctx, tx, WhereString("WHERE id=$1"), int64(1))
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 results, got %d", len(result))
@@ -305,7 +305,7 @@ func TestInsert_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -328,7 +328,7 @@ func TestInsertTx_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -344,10 +344,10 @@ func TestInsertTx_NonEmptyEntities(t *testing.T) {
 	entity := Test{Id: 1, Name: "test", Desc: "desc", TransationType: 1, AnotherType: "other"}
 	rowsAffected, err := tbl.InsertTx(ctx, tx, entity)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if rowsAffected != 1 {
 		t.Errorf("expected 1 row affected, got %d", rowsAffected)
@@ -359,7 +359,7 @@ func TestUpdate_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -382,7 +382,7 @@ func TestUpdateTx_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -398,10 +398,10 @@ func TestUpdateTx_NonEmptyEntities(t *testing.T) {
 	entity := Test{Id: 1, Name: "test", Desc: "desc", TransationType: 1, AnotherType: "other"}
 	rowsAffected, err := tbl.UpdateTx(ctx, tx, entity)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if rowsAffected != 1 {
 		t.Errorf("expected 1 row affected, got %d", rowsAffected)
@@ -413,7 +413,7 @@ func TestDelete_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -436,7 +436,7 @@ func TestDeleteTx_NonEmptyEntities(t *testing.T) {
 		rowsAffected: 1,
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -452,10 +452,10 @@ func TestDeleteTx_NonEmptyEntities(t *testing.T) {
 	entity := Test{Id: 1}
 	rowsAffected, err := tbl.DeleteTx(ctx, tx, entity)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if rowsAffected != 1 {
 		t.Errorf("expected 1 row affected, got %d", rowsAffected)
@@ -468,7 +468,7 @@ func TestInsert_ExecError_PropagatesError(t *testing.T) {
 		execErr: errors.New("exec error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -489,7 +489,7 @@ func TestUpdate_ExecError_PropagatesError(t *testing.T) {
 		execErr: errors.New("exec error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -510,7 +510,7 @@ func TestDelete_ExecError_PropagatesError(t *testing.T) {
 		execErr: errors.New("exec error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -531,7 +531,7 @@ func TestSelectWhereTx_WithArgs_QueryError(t *testing.T) {
 		queryErr: errors.New("query error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -546,7 +546,7 @@ func TestSelectWhereTx_WithArgs_QueryError(t *testing.T) {
 
 	_, err = tbl.SelectWhereTx(ctx, tx, WhereString("WHERE id=$1"), int64(1))
 	if err == nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Error("expected error from SelectWhereTx with query error, got nil")
 	}
 }
@@ -570,7 +570,7 @@ func TestSelectWhere_WithRows(t *testing.T) {
 		},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[SimpleEntity]("schem.simple")
 	if err != nil {
@@ -598,7 +598,7 @@ func TestSelectWhere_CommitError(t *testing.T) {
 		commitErr: errors.New("commit error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -619,7 +619,7 @@ func TestInsert_CommitError(t *testing.T) {
 		commitErr:    errors.New("commit error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -641,7 +641,7 @@ func TestUpdate_CommitError(t *testing.T) {
 		commitErr:    errors.New("commit error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -663,7 +663,7 @@ func TestDelete_CommitError(t *testing.T) {
 		commitErr:    errors.New("commit error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[Test]("schem.tab")
 	if err != nil {
@@ -686,7 +686,7 @@ func TestQuery_SelectWhere_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -709,7 +709,7 @@ func TestQuery_Select_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -732,7 +732,7 @@ func TestQuery_SelectTx_EmptyRows(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -747,10 +747,10 @@ func TestQuery_SelectTx_EmptyRows(t *testing.T) {
 
 	result, err := q.SelectTx(ctx, tx)
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 results, got %d", len(result))
@@ -762,7 +762,7 @@ func TestQuery_SelectWhere_QueryError(t *testing.T) {
 		queryErr: errors.New("query error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -783,7 +783,7 @@ func TestQuery_SelectWhere_CommitError(t *testing.T) {
 		commitErr: errors.New("commit error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -803,7 +803,7 @@ func TestQuery_SelectWhereTx_WithArgs(t *testing.T) {
 		rows: [][]driver.Value{},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -818,10 +818,10 @@ func TestQuery_SelectWhereTx_WithArgs(t *testing.T) {
 
 	result, err := q.SelectWhereTx(ctx, tx, WhereString("WHERE id=$1"), int64(1))
 	if err != nil {
-		tx.Rollback()
+		_ = tx.Rollback()
 		t.Fatalf("unexpected error: %v", err)
 	}
-	tx.Commit()
+	_ = tx.Commit()
 
 	if len(result) != 0 {
 		t.Errorf("expected 0 results, got %d", len(result))
@@ -837,7 +837,7 @@ func TestQuery_SelectWhere_WithRows(t *testing.T) {
 		},
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	q, err := ForQuery[CompositeLeftJoinEntity]()
 	if err != nil {
@@ -878,7 +878,7 @@ func TestSelectWhere_RollbackOnQueryError(t *testing.T) {
 		queryErr: errors.New("query error"),
 	}
 	db := newMockDB(conn)
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	tbl, err := ForTable[SimpleEntity]("schem.simple")
 	if err != nil {

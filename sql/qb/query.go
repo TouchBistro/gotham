@@ -78,7 +78,7 @@ func (t Query[T]) SelectWhereTx(ctx context.Context, tx *sql.Tx, where WhereClau
 	if err != nil {
 		return nil, errors.Wrapf(err, "error fetching entities from database")
 	}
-	defer rs.Close()
+	defer func() { _ = rs.Close() }()
 
 	mapper := t.mapper
 	rows := make([]T, 0)
