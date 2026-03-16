@@ -6,6 +6,7 @@ require (
 	github.com/TouchBistro/goutils v0.5.0
 	github.com/gin-gonic/gin v1.10.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
+	github.com/lib/pq v1.11.2
 	github.com/pkg/errors v0.9.1
 	github.com/redis/go-redis/v9 v9.7.0
 	github.com/sirupsen/logrus v1.9.3

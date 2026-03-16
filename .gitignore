@@ -1,2 +1,4 @@
 .DS_Store
 coverage/
+go.work
+go.work.sum
