@@ -109,7 +109,7 @@ func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, err
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	getChannelsResponse := &GetChannelsResponse{}
 	if resp.StatusCode == http.StatusOK {
@@ -162,7 +162,7 @@ func (s *Client) PostMessage(message PostMessageRequest) (*PostMessageResponse, 
 	if err != nil {
 		return nil, errors.Wrap(err, "error posting message to slack channel")
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var postMessageResponse *PostMessageResponse
 	if resp.StatusCode == http.StatusOK {
