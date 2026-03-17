@@ -1,5 +1,19 @@
 package slack
 
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"time"
+
+	"github.com/pkg/errors"
+)
+
+// conversationsListURLTemplate is the URL template used by GetChannels.
+// It is a package-level variable so tests can override it with an httptest server URL.
+var conversationsListURLTemplate = "https://slack.com/api/conversations.list?limit=%v&types=%v%v"
+
 // Color constants for Slack message attachment left-border colors.
 const (
 	// Good is the hex color for a success/green attachment border.
@@ -53,4 +67,54 @@ func (s *Client) ToStringPtr(val string) *string {
 // without importing a separate utility package.
 func (s *Client) ToInt64Ptr(val int64) *int64 {
 	return toInt64Ptr(val)
+}
+
+// GetChannels returns a list of Slack channels by calling the conversations.list API.
+// Optional parameters in req control pagination (limit, types, cursor); passing nil
+// applies sensible defaults (limit=100, types="public_channel").
+func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, error) {
+	limit := int64(100)
+	types := "public_channel"
+	cursorQueryParam := ""
+
+	if req != nil {
+		if req.Limit != nil {
+			limit = *req.Limit
+		}
+		if req.Types != nil {
+			types = *req.Types
+		}
+		if req.NextCursor != nil {
+			cursorQueryParam = fmt.Sprintf("&cursor=%v", *req.NextCursor)
+		}
+	}
+
+	url := fmt.Sprintf(conversationsListURLTemplate, limit, types, cursorQueryParam)
+	httpReq, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Add("Content-Type", "application/json")
+	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %v", *s.BotToken))
+
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	getChannelsResponse := &GetChannelsResponse{}
+	if resp.StatusCode == http.StatusOK {
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "error reading response body")
+		}
+		if err = json.Unmarshal(body, getChannelsResponse); err != nil {
+			return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
+		}
+	}
+
+	return getChannelsResponse, nil
 }
