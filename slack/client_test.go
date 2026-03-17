@@ -281,6 +281,119 @@ func TestPostMessage_ErrorResponse(t *testing.T) {
 	}
 }
 
+// TestGetChannels_MalformedJSON verifies that GetChannels returns an error
+// when the server returns a 200 response with a non-JSON body.
+func TestGetChannels_MalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	old := conversationsListURLTemplate
+	conversationsListURLTemplate = srv.URL + "?limit=%v&types=%v%v"
+	defer func() { conversationsListURLTemplate = old }()
+
+	c := NewClient("xoxb-token", "", "")
+	_, err := c.GetChannels(nil)
+	if err == nil {
+		t.Fatal("GetChannels with malformed JSON returned nil error; want non-nil")
+	}
+}
+
+// TestGetChannels_HTTPError verifies that GetChannels returns an error when
+// the HTTP client cannot reach the target server (e.g. server already closed).
+func TestGetChannels_HTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Close() // Close immediately so the request will fail
+
+	old := conversationsListURLTemplate
+	conversationsListURLTemplate = srv.URL + "?limit=%v&types=%v%v"
+	defer func() { conversationsListURLTemplate = old }()
+
+	c := NewClient("xoxb-token", "", "")
+	_, err := c.GetChannels(nil)
+	if err == nil {
+		t.Fatal("GetChannels with unreachable server returned nil error; want non-nil")
+	}
+}
+
+// TestPostMessage_NonOKStatus verifies that PostMessage returns a nil response
+// and no error when the server returns a non-200 HTTP status code.
+func TestPostMessage_NonOKStatus(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-token", "", "C001")
+	c.WebhookURL = nil
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("test"),
+	}
+	resp, err := c.PostMessage(req)
+	if err != nil {
+		t.Fatalf("PostMessage with non-200 status returned unexpected error: %v", err)
+	}
+	if resp != nil {
+		t.Errorf("PostMessage with non-200 status returned non-nil response; want nil")
+	}
+}
+
+// TestPostMessage_MalformedJSON verifies that PostMessage returns an error
+// when the server returns a 200 response with non-JSON body.
+func TestPostMessage_MalformedJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-token", "", "C001")
+	c.WebhookURL = nil
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("test"),
+	}
+	_, err := c.PostMessage(req)
+	if err == nil {
+		t.Fatal("PostMessage with malformed JSON returned nil error; want non-nil")
+	}
+}
+
+// TestPostMessage_HTTPError verifies that PostMessage returns an error when
+// the HTTP client cannot reach the target server.
+func TestPostMessage_HTTPError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {}))
+	srv.Close() // Close immediately so the request will fail
+
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-token", "", "C001")
+	c.WebhookURL = nil
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("test"),
+	}
+	_, err := c.PostMessage(req)
+	if err == nil {
+		t.Fatal("PostMessage with unreachable server returned nil error; want non-nil")
+	}
+}
+
 // TestPostMessage_DefaultChannelFallback verifies that when message.Channel is
 // nil, PostMessage uses the client's DefaultChannelID instead.
 func TestPostMessage_DefaultChannelFallback(t *testing.T) {
