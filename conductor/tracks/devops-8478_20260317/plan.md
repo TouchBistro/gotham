@@ -12,7 +12,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 ---
 
-## Phase 1: Package Scaffold and Types
+## Phase 1: Package Scaffold and Types [checkpoint: 27ae64a]
 
 **Goal:** Establish the `slack/` package directory, migrate all request/response types from `types.go`, and define local unexported pointer helpers that replace `checkr/util` dependencies.
 
@@ -28,7 +28,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 ---
 
-## Phase 2: Client and Templates
+## Phase 2: Client and Templates [checkpoint: 27ae64a]
 
 **Goal:** Migrate `client.go` with a refactored `NewClient` constructor (accepting parameters instead of reading env vars), migrate `templates.go` with `FormatSimpleMessage` (accepting `baseURL` as a parameter), and confirm no `checkr` imports remain.
 
@@ -48,7 +48,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 ---
 
-## Phase 3: Coverage, Godoc Audit, and README
+## Phase 3: Coverage, Godoc Audit, and README [checkpoint: 27ae64a]
 
 **Goal:** Reach >90% test coverage, ensure every exported symbol has godoc, and produce a `README.md` for the package.
 
