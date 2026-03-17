@@ -56,7 +56,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 - [x] Task: Coverage audit — Run `go test -coverprofile=coverage/slack.out ./slack/... && go tool cover -func=coverage/slack.out`. Identify any uncovered code paths. Write additional tests as needed to reach >90% coverage. (TDD: Identify uncovered branches → write targeted failing tests → implement coverage → confirm pass) [5a6f9db]
 
-- [ ] Task: Godoc audit — Review all exported symbols across `client.go`, `types.go`, `templates.go`, and `helpers.go` (if any exported). Confirm every exported constant, type, field, function, and method has a godoc comment. Fix any missing or inadequate comments. No tests required for this task; verify with `go doc ./slack/...` producing readable output.
+- [x] Task: Godoc audit — Review all exported symbols across `client.go`, `types.go`, `templates.go`, and `helpers.go` (if any exported). Confirm every exported constant, type, field, function, and method has a godoc comment. Fix any missing or inadequate comments. No tests required for this task; verify with `go doc ./slack/...` producing readable output. [no-change: all godoc already complete]
 
 - [ ] Task: Create `slack/README.md` — Write README covering: package purpose, how to construct a `Client` with `NewClient`, how to call `PostMessage` and `GetChannels`, the available color constants (`Good`, `Danger`, `Warning`, `Blue`), and a minimal `FormatSimpleMessage` usage example with sample output. No tests required.
 
