@@ -18,13 +18,13 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 ### Tasks
 
-- [ ] Task: Inspect source files — Read `~/Projects/devops/checkr/slack/client.go`, `types.go`, `templates.go`, and `slack.go` in full to understand all types, imports, and function signatures before writing any code. (TDD: prerequisite — no test yet, understanding only)
+- [x] Task: Inspect source files — Read `~/Projects/devops/checkr/slack/client.go`, `types.go`, `templates.go`, and `slack.go` in full to understand all types, imports, and function signatures before writing any code. (TDD: prerequisite — no test yet, understanding only)
 
-- [ ] Task: Create `slack/types.go` — Migrate all request and response types (`PostMessageRequest`, `MessageAttachment`, `MessageBlock`, `GetChannelsRequest`, `GetChannelsResponse`, and any others present in source). Add godoc comments to every exported type and field. Write `slack/types_test.go` with construction tests that assert struct fields are correctly set. (TDD: Write failing test asserting field assignment → implement types → confirm tests pass)
+- [x] Task: Create `slack/types.go` — Migrate all request and response types (`PostMessageRequest`, `MessageAttachment`, `MessageBlock`, `GetChannelsRequest`, `GetChannelsResponse`, and any others present in source). Add godoc comments to every exported type and field. Write `slack/types_test.go` with construction tests that assert struct fields are correctly set. (TDD: Write failing test asserting field assignment → implement types → confirm tests pass) [9fd772d]
 
-- [ ] Task: Create `slack/helpers.go` — Define unexported `toStringPtr(val string) *string` and `toInt64Ptr(val int64) *int64` helpers. Write `slack/helpers_test.go` to verify each returns a pointer to the correct value. (TDD: Write failing tests → implement helpers → confirm pass)
+- [x] Task: Create `slack/helpers.go` — Define unexported `toStringPtr(val string) *string` and `toInt64Ptr(val int64) *int64` helpers. Write `slack/helpers_test.go` to verify each returns a pointer to the correct value. (TDD: Write failing tests → implement helpers → confirm pass) [8461294]
 
-- [ ] Verification: Run `go build ./slack/...` and `go vet ./slack/...` — confirm zero errors. Run `go test ./slack/...` — confirm all Phase 1 tests pass. [checkpoint marker]
+- [x] Verification: Run `go build ./slack/...` and `go vet ./slack/...` — confirm zero errors. Run `go test ./slack/...` — confirm all Phase 1 tests pass. [checkpoint marker]
 
 ---
 
