@@ -7,7 +7,7 @@ Branch: `feat/devops-8473`
 Type: feature
 Created: 2026-03-13
 
-## [ ] Track: gotham: add slack package (from checkr) [devops-8478_20260317]
+## [~] Track: gotham: add slack package (from checkr) [devops-8478_20260317]
 
 (Jira: DEVOPS-8478)
 Branch: `feat/devops-8478`
