@@ -42,7 +42,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 - [x] Task: Create `slack/templates.go` [5a30a3e] — Port `FormatSimpleMessage` (renamed from `FormatSimpleCheckrMessage`). Replace the `env.CoalesceEnv` call with the `baseURL string` parameter. Replace any `checkr/util` calls with the local unexported helpers. Add godoc. Write `slack/templates_test.go` with tests that call `FormatSimpleMessage` with known inputs and assert the returned `PostMessageRequest` fields (attachment color, title link, text, etc.). (TDD: Write failing tests → implement function → confirm pass)
 
-- [ ] Task: Verify no checkr imports remain — Confirm with `grep -r "TouchBistro/checkr" slack/` that the result is empty.
+- [x] Task: Verify no checkr imports remain — Confirm with `grep -r "TouchBistro/checkr" slack/` that the result is empty.
 
 - [ ] Verification: Run `go build ./slack/...` and `go vet ./slack/...` — confirm zero errors. Run `go test -cover ./slack/...` — confirm all tests pass and coverage is reported. [checkpoint marker]
 
