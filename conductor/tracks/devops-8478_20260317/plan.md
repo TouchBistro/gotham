@@ -58,7 +58,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 - [x] Task: Godoc audit — Review all exported symbols across `client.go`, `types.go`, `templates.go`, and `helpers.go` (if any exported). Confirm every exported constant, type, field, function, and method has a godoc comment. Fix any missing or inadequate comments. No tests required for this task; verify with `go doc ./slack/...` producing readable output. [no-change: all godoc already complete]
 
-- [ ] Task: Create `slack/README.md` — Write README covering: package purpose, how to construct a `Client` with `NewClient`, how to call `PostMessage` and `GetChannels`, the available color constants (`Good`, `Danger`, `Warning`, `Blue`), and a minimal `FormatSimpleMessage` usage example with sample output. No tests required.
+- [x] Task: Create `slack/README.md` — Write README covering: package purpose, how to construct a `Client` with `NewClient`, how to call `PostMessage` and `GetChannels`, the available color constants (`Good`, `Danger`, `Warning`, `Blue`), and a minimal `FormatSimpleMessage` usage example with sample output. No tests required. [08e0c21]
 
 - [ ] Task: Update `conductor/tracks.md` — Add the new track entry for `devops-8478_20260317` with status in-progress.
 
