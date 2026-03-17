@@ -2,6 +2,7 @@ package slack
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -175,5 +176,142 @@ func TestGetChannels_RequestParams(t *testing.T) {
 	}
 	if !strings.Contains(capturedURL, "cursor=dXNlcjpVMEc5V") {
 		t.Errorf("URL %q does not contain cursor param", capturedURL)
+	}
+}
+
+// ---------------------------------------------------------------------------
+// PostMessage tests
+// ---------------------------------------------------------------------------
+
+// TestPostMessage_WebhookPath verifies that PostMessage sends to WebhookURL
+// when it is set on the client, and that the response is correctly parsed.
+func TestPostMessage_WebhookPath(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("method = %q; want POST", r.Method)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("", srv.URL, "C001")
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("hello"),
+	}
+	resp, err := c.PostMessage(req)
+	if err != nil {
+		t.Fatalf("PostMessage webhook path returned error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("PostMessage webhook path returned nil response")
+	}
+	if !resp.OK {
+		t.Errorf("resp.OK = false; want true")
+	}
+}
+
+// TestPostMessage_BotTokenPath verifies that PostMessage sets the Authorization
+// header when BotToken is non-nil and WebhookURL is empty.
+func TestPostMessage_BotTokenPath(t *testing.T) {
+	var capturedAuth string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAuth = r.Header.Get("Authorization")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	// Override the chat.postMessage URL for testing
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-bot-token", "", "C001")
+	// Explicitly set WebhookURL to nil to force the bot-token path
+	c.WebhookURL = nil
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("test message"),
+	}
+	resp, err := c.PostMessage(req)
+	if err != nil {
+		t.Fatalf("PostMessage bot-token path returned error: %v", err)
+	}
+	if resp == nil {
+		t.Fatal("PostMessage bot-token path returned nil response")
+	}
+	if capturedAuth != "Bearer xoxb-bot-token" {
+		t.Errorf("Authorization = %q; want %q", capturedAuth, "Bearer xoxb-bot-token")
+	}
+}
+
+// TestPostMessage_ErrorResponse verifies that PostMessage returns an error
+// when the Slack API responds with {"ok":false,"error":"channel_not_found"}.
+func TestPostMessage_ErrorResponse(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":false,"error":"channel_not_found"}`))
+	}))
+	defer srv.Close()
+
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-token", "", "C001")
+	c.WebhookURL = nil
+	req := PostMessageRequest{
+		Channel: toStringPtr("C001"),
+		Text:    toStringPtr("test"),
+	}
+	resp, err := c.PostMessage(req)
+	if err == nil {
+		t.Fatal("PostMessage with error response returned nil error; want non-nil")
+	}
+	if resp == nil {
+		t.Fatal("PostMessage with error response returned nil PostMessageResponse; want non-nil")
+	}
+	if resp.OK {
+		t.Errorf("resp.OK = true; want false for error response")
+	}
+}
+
+// TestPostMessage_DefaultChannelFallback verifies that when message.Channel is
+// nil, PostMessage uses the client's DefaultChannelID instead.
+func TestPostMessage_DefaultChannelFallback(t *testing.T) {
+	var capturedBody []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var err error
+		capturedBody, err = io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("reading request body: %v", err)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	defer srv.Close()
+
+	old := chatPostMessageURL
+	chatPostMessageURL = srv.URL
+	defer func() { chatPostMessageURL = old }()
+
+	c := NewClient("xoxb-token", "", "C-DEFAULT")
+	c.WebhookURL = nil
+	// Channel is nil — should fall back to DefaultChannelID
+	req := PostMessageRequest{
+		Text: toStringPtr("fallback test"),
+	}
+	_, err := c.PostMessage(req)
+	if err != nil {
+		t.Fatalf("PostMessage default channel fallback returned error: %v", err)
+	}
+	if !strings.Contains(string(capturedBody), "C-DEFAULT") {
+		t.Errorf("request body %q does not contain default channel ID", string(capturedBody))
 	}
 }

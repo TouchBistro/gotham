@@ -1,6 +1,7 @@
 package slack
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,11 +9,16 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	log "github.com/sirupsen/logrus"
 )
 
 // conversationsListURLTemplate is the URL template used by GetChannels.
 // It is a package-level variable so tests can override it with an httptest server URL.
 var conversationsListURLTemplate = "https://slack.com/api/conversations.list?limit=%v&types=%v%v"
+
+// chatPostMessageURL is the default URL used by PostMessage when no WebhookURL is set.
+// It is a package-level variable so tests can override it with an httptest server URL.
+var chatPostMessageURL = "https://slack.com/api/chat.postMessage"
 
 // Color constants for Slack message attachment left-border colors.
 const (
@@ -117,4 +123,62 @@ func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, err
 	}
 
 	return getChannelsResponse, nil
+}
+
+// PostMessage posts a message to a Slack channel using either an incoming-webhook
+// URL (when WebhookURL is set on the client) or the chat.postMessage API endpoint
+// (when only BotToken is available).
+//
+// If message.Channel is nil, DefaultChannelID from the client is used as the target
+// channel. The Authorization header is only added when BotToken is non-nil.
+func (s *Client) PostMessage(message PostMessageRequest) (*PostMessageResponse, error) {
+	url := chatPostMessageURL
+	if s.WebhookURL != nil {
+		url = *s.WebhookURL
+	}
+
+	// Fall back to the client's default channel when the caller omits one.
+	if message.Channel == nil {
+		message.Channel = s.DefaultChannelID
+	}
+
+	body, err := json.Marshal(message)
+	if err != nil {
+		return nil, errors.Wrap(err, "error serializing message body")
+	}
+
+	httpReq, err := http.NewRequest(http.MethodPost, url, bytes.NewBuffer(body))
+	if err != nil {
+		return nil, err
+	}
+
+	httpReq.Header.Add("Content-Type", "application/json")
+	if s.BotToken != nil {
+		httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %v", *s.BotToken))
+	}
+
+	httpClient := &http.Client{Timeout: 5 * time.Second}
+	resp, err := httpClient.Do(httpReq)
+	if err != nil {
+		return nil, errors.Wrap(err, "error posting message to slack channel")
+	}
+	defer resp.Body.Close()
+
+	var postMessageResponse *PostMessageResponse
+	if resp.StatusCode == http.StatusOK {
+		respBody, err := io.ReadAll(resp.Body)
+		if err != nil {
+			return nil, errors.Wrap(err, "error reading response body")
+		}
+		postMessageResponse = &PostMessageResponse{}
+		if err = json.Unmarshal(respBody, postMessageResponse); err != nil {
+			return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
+		}
+		if !postMessageResponse.OK {
+			log.Error(string(respBody))
+			return postMessageResponse, errors.Errorf("error when sending message: %v", postMessageResponse.Error)
+		}
+	}
+
+	return postMessageResponse, nil
 }
