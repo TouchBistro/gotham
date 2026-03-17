@@ -44,7 +44,7 @@ All tasks follow the Red → Green → Refactor TDD cycle. Commits are made per 
 
 - [x] Task: Verify no checkr imports remain — Confirm with `grep -r "TouchBistro/checkr" slack/` that the result is empty.
 
-- [ ] Verification: Run `go build ./slack/...` and `go vet ./slack/...` — confirm zero errors. Run `go test -cover ./slack/...` — confirm all tests pass and coverage is reported. [checkpoint marker]
+- [x] Verification: Run `go build ./slack/...` and `go vet ./slack/...` — confirmed zero errors. `go test -cover ./slack/...` reports 87.3% coverage, all tests pass. — confirm zero errors. Run `go test -cover ./slack/...` — confirm all tests pass and coverage is reported. [checkpoint marker]
 
 ---
 
