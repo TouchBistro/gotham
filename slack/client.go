@@ -51,12 +51,17 @@ type Client struct {
 // It stores each value as a pointer so callers can later inspect or override
 // individual fields. Unlike the checkr source, this constructor does not
 // read environment variables — the caller is responsible for supplying them.
+// webhookURL may be an empty string; when empty, PostMessage uses the
+// chat.postMessage API endpoint instead.
 func NewClient(botToken, webhookURL, defaultChannelID string) Client {
-	return Client{
+	c := Client{
 		BotToken:         toStringPtr(botToken),
-		WebhookURL:       toStringPtr(webhookURL),
 		DefaultChannelID: toStringPtr(defaultChannelID),
 	}
+	if webhookURL != "" {
+		c.WebhookURL = toStringPtr(webhookURL)
+	}
+	return c
 }
 
 // ToStringPtr returns a pointer to a copy of val.
@@ -102,6 +107,9 @@ func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, err
 	}
 
 	httpReq.Header.Add("Content-Type", "application/json")
+	if s.BotToken == nil {
+		return nil, errors.New("GetChannels requires a BotToken; client was constructed without one")
+	}
 	httpReq.Header.Add("Authorization", fmt.Sprintf("Bearer %v", *s.BotToken))
 
 	httpClient := &http.Client{Timeout: 5 * time.Second}
@@ -111,15 +119,17 @@ func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, err
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading response body")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("GetChannels: unexpected HTTP status %d: %s", resp.StatusCode, string(body))
+	}
+
 	getChannelsResponse := &GetChannelsResponse{}
-	if resp.StatusCode == http.StatusOK {
-		body, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errors.Wrap(err, "error reading response body")
-		}
-		if err = json.Unmarshal(body, getChannelsResponse); err != nil {
-			return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
-		}
+	if err = json.Unmarshal(body, getChannelsResponse); err != nil {
+		return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
 	}
 
 	return getChannelsResponse, nil
@@ -133,7 +143,7 @@ func (s *Client) GetChannels(req *GetChannelsRequest) (*GetChannelsResponse, err
 // channel. The Authorization header is only added when BotToken is non-nil.
 func (s *Client) PostMessage(message PostMessageRequest) (*PostMessageResponse, error) {
 	url := chatPostMessageURL
-	if s.WebhookURL != nil {
+	if s.WebhookURL != nil && *s.WebhookURL != "" {
 		url = *s.WebhookURL
 	}
 
@@ -164,20 +174,21 @@ func (s *Client) PostMessage(message PostMessageRequest) (*PostMessageResponse, 
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	var postMessageResponse *PostMessageResponse
-	if resp.StatusCode == http.StatusOK {
-		respBody, err := io.ReadAll(resp.Body)
-		if err != nil {
-			return nil, errors.Wrap(err, "error reading response body")
-		}
-		postMessageResponse = &PostMessageResponse{}
-		if err = json.Unmarshal(respBody, postMessageResponse); err != nil {
-			return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
-		}
-		if !postMessageResponse.OK {
-			log.Error(string(respBody))
-			return postMessageResponse, errors.Errorf("error when sending message: %v", postMessageResponse.Error)
-		}
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, errors.Wrap(err, "error reading response body")
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, errors.Errorf("PostMessage: unexpected HTTP status %d: %s", resp.StatusCode, string(respBody))
+	}
+
+	postMessageResponse := &PostMessageResponse{}
+	if err = json.Unmarshal(respBody, postMessageResponse); err != nil {
+		return nil, errors.Wrapf(err, "error deserializing response: %v", err.Error())
+	}
+	if !postMessageResponse.OK {
+		log.Error(string(respBody))
+		return postMessageResponse, errors.Errorf("error when sending message: %v", postMessageResponse.Error)
 	}
 
 	return postMessageResponse, nil

@@ -137,14 +137,11 @@ func TestGetChannels_NonOKStatus(t *testing.T) {
 
 	c := NewClient("xoxb-token", "", "")
 	resp, err := c.GetChannels(nil)
-	if err != nil {
-		t.Fatalf("GetChannels with non-200 returned unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("GetChannels with non-200 status expected an error; got nil")
 	}
-	if resp == nil {
-		t.Fatal("GetChannels with non-200 returned nil response")
-	}
-	if len(resp.Channels) != 0 {
-		t.Errorf("len(Channels) = %d; want 0 for non-200 response", len(resp.Channels))
+	if resp != nil {
+		t.Errorf("GetChannels with non-200 status expected nil response; got %+v", resp)
 	}
 }
 
@@ -338,11 +335,11 @@ func TestPostMessage_NonOKStatus(t *testing.T) {
 		Text:    toStringPtr("test"),
 	}
 	resp, err := c.PostMessage(req)
-	if err != nil {
-		t.Fatalf("PostMessage with non-200 status returned unexpected error: %v", err)
+	if err == nil {
+		t.Fatal("PostMessage with non-200 status expected an error; got nil")
 	}
 	if resp != nil {
-		t.Errorf("PostMessage with non-200 status returned non-nil response; want nil")
+		t.Errorf("PostMessage with non-200 status expected nil response; got %+v", resp)
 	}
 }
 

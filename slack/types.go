@@ -81,8 +81,6 @@ type PostMessageResponse struct {
 	OK bool `json:"ok"`
 	// Error contains the Slack error code when OK is false.
 	Error string `json:"error"`
-	// Bytes holds the raw response body for diagnostic purposes.
-	Bytes string `json:"raw"`
 }
 
 // Channel represents a Slack channel returned by the conversations.list API.

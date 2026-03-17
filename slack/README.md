@@ -33,8 +33,9 @@ client := slack.NewClient(
 )
 ```
 
-When `webhookURL` is an empty string, `PostMessage` falls back to the
-`chat.postMessage` API endpoint and uses the bot token for authorisation.
+When `webhookURL` is an empty string, `NewClient` leaves `WebhookURL` as nil
+and `PostMessage` falls back to the `chat.postMessage` API endpoint, using the
+bot token for authorisation.
 
 ---
 
@@ -86,7 +87,7 @@ for _, ch := range resp.Channels {
 req := &slack.GetChannelsRequest{
     Limit:      client.ToInt64Ptr(200),
     Types:      client.ToStringPtr("private_channel"),
-    NextCursor: client.ToStringPtr(resp.ResponseMetadata.NextCursor),
+    NextCursor: resp.ResponseMetadata.NextCursor, // already a *string
 }
 nextPage, err := client.GetChannels(req)
 ```

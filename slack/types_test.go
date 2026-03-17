@@ -151,14 +151,10 @@ func TestPostMessageResponse_FieldAssignment(t *testing.T) {
 	resp := PostMessageResponse{
 		OK:    true,
 		Error: "",
-		Bytes: "raw",
 	}
 
 	if !resp.OK {
 		t.Errorf("OK = false; want true")
-	}
-	if resp.Bytes != "raw" {
-		t.Errorf("Bytes = %q; want %q", resp.Bytes, "raw")
 	}
 }
 

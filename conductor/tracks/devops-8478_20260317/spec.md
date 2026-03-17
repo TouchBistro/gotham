@@ -166,7 +166,7 @@ The `slack` package implementation uses only Go standard library packages and de
 
 **Scenario:** Format a message with a known base URL
 - **Given** I have a title, link path, and base URL
-- **When** I call `slack.FormatSimpleMessage(baseURL, title, ...)`
+- **When** I call `slack.FormatSimpleMessage(title, color, message, detailsPageRelativePath, baseURL)`
 - **Then** I receive a `PostMessageRequest` with correctly set attachment fields
 
 ---
