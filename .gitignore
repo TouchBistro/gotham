@@ -2,3 +2,4 @@
 coverage/
 go.work
 go.work.sum
+conductor/.conductor_session_log
