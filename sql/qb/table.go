@@ -3,6 +3,7 @@ package qb
 import (
 	"context"
 	"database/sql"
+	"database/sql/driver"
 	"fmt"
 	"reflect"
 	"strings"
@@ -260,6 +261,15 @@ func (t Table[T]) InsertTx(ctx context.Context, tx *sql.Tx, entities ...T) (int6
 				// if c.IsSqlArrayType {
 				// 	v = pq.Array(v)
 				// }
+				// Pre-serialize driver.Valuer values so pq.GenericArray receives the
+				// already-serialized value (e.g. a JSON string) rather than the raw
+				// named-slice/map type, which pq would otherwise misinterpret as a
+				// nested PostgreSQL array.
+				if valuer, ok := v.(driver.Valuer); ok {
+					if dv, verr := valuer.Value(); verr == nil {
+						v = dv
+					}
+				}
 				parms[ind] = append(parms[ind], v)
 				ind++
 			}
@@ -353,6 +363,15 @@ func (t Table[T]) UpdateTx(ctx context.Context, tx *sql.Tx, entities ...T) (int6
 				// if c.IsSqlArrayType {
 				// 	v = pq.Array(v)
 				// }
+				// Pre-serialize driver.Valuer values so pq.GenericArray receives the
+				// already-serialized value (e.g. a JSON string) rather than the raw
+				// named-slice/map type, which pq would otherwise misinterpret as a
+				// nested PostgreSQL array.
+				if valuer, ok := v.(driver.Valuer); ok {
+					if dv, verr := valuer.Value(); verr == nil {
+						v = dv
+					}
+				}
 				parms[ind] = append(parms[ind], v)
 				ind++
 			}
@@ -441,6 +460,11 @@ func (t Table[T]) DeleteTx(ctx context.Context, tx *sql.Tx, entities ...T) (int6
 				v := reflect.ValueOf(e).FieldByName(c.FieldName).Interface()
 				if c.IsSqlArrayType {
 					v = pq.Array(v)
+				}
+				if valuer, ok := v.(driver.Valuer); ok {
+					if dv, verr := valuer.Value(); verr == nil {
+						v = dv
+					}
 				}
 				parms[ind] = append(parms[ind], v)
 				ind++
