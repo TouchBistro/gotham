@@ -85,6 +85,7 @@ func parseColumnMetadataFromStructField(f reflect.StructField) ColumnMetadata {
 			meta.IsKey = true
 		} else if strings.HasPrefix(token, "type=") {
 			meta.SqlType = strings.TrimPrefix(token, "type=")
+			meta.IsSqlArrayType = strings.HasSuffix(meta.SqlType, "[]")
 		} else if strings.HasPrefix(token, "as=") {
 			meta.Alias = strings.TrimPrefix(token, "as=")
 			aliasSupplied = true
