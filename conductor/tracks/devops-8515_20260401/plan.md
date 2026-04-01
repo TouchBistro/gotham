@@ -46,7 +46,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 2: Core API Methods
+## Phase 2: Core API Methods [checkpoint: ac59f05]
 
 **Goal:** Implement `ListAllStacks` with pagination, `LockStack`, and `UnlockStack`.
 
