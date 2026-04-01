@@ -95,7 +95,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 3.1: Add errgroup dependency**
+- [x] **Task 3.1: Add errgroup dependency** [47934ff]
   - Run `go get golang.org/x/sync` to add the errgroup dependency.
   - Update `tech-stack.md` to document the new dependency.
 
