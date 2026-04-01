@@ -52,7 +52,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 2.1: Implement ListAllStacks with pagination**
+- [x] **Task 2.1: Implement ListAllStacks with pagination** [b73b443]
   - Add `ListAllStacks() ([]Stack, error)` method on `*Client`.
   - First request: `GET {base_uri}/api/stacks?page_size=50`.
   - Parse the `Link` response header; if `rel=next` is present, extract the `since` parameter and make subsequent calls with `GET {base_uri}/api/stacks?page_size=50&since=N`.
