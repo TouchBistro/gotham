@@ -16,7 +16,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 1: Types and Client Constructor
+## Phase 1: Types and Client Constructor [checkpoint: fe3d08f]
 
 **Goal:** Establish the package structure, define the Stack data type, and implement the client constructor with Basic Auth support.
 
