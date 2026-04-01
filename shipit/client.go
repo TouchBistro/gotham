@@ -1,6 +1,7 @@
 package shipit
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -102,4 +103,39 @@ func (c *Client) ListAllStacks() ([]Stack, error) {
 		all = []Stack{}
 	}
 	return all, nil
+}
+
+// LockStack locks the stack identified by stackID (repo_owner/repo_name/environment)
+// with the supplied reason. It sends a POST to {base_uri}/api/stacks/{stack_id}/lock
+// with a JSON body containing the reason.
+func (c *Client) LockStack(stackID, reason string) error {
+	payload, err := json.Marshal(struct {
+		Reason string `json:"reason"`
+	}{Reason: reason})
+	if err != nil {
+		return fmt.Errorf("shipit: marshaling lock request body: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("%s/api/stacks/%s/lock", c.baseURI, stackID)
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	if err != nil {
+		return fmt.Errorf("shipit: creating lock stack request: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	c.setAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("shipit: executing lock stack request: %w", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("shipit: reading lock stack response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("shipit: lock stack %q returned status %d: %s", stackID, resp.StatusCode, string(body))
+	}
+	return nil
 }

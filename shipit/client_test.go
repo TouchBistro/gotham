@@ -3,6 +3,7 @@ package shipit
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -200,5 +201,76 @@ func TestListAllStacks_EmptyResponse(t *testing.T) {
 	}
 	if len(got) != 0 {
 		t.Errorf("ListAllStacks() returned %d stacks; want 0", len(got))
+	}
+}
+
+// --- LockStack tests ---
+
+// TestLockStack_Success verifies that LockStack sends a correct POST request and
+// returns no error on a 200 response.
+func TestLockStack_Success(t *testing.T) {
+	const stackID = "touchbistro/repo-a/production"
+	const reason = "deploying hotfix"
+
+	var gotMethod, gotPath, gotBody, gotContentType string
+	var gotUser, gotPass string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotContentType = r.Header.Get("Content-Type")
+		gotUser, gotPass, _ = r.BasicAuth()
+
+		b, _ := io.ReadAll(r.Body)
+		gotBody = string(b)
+
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockStack(stackID, reason)
+	if err != nil {
+		t.Fatalf("LockStack() error = %v; want nil", err)
+	}
+
+	wantPath := "/api/stacks/" + stackID + "/lock"
+	if gotMethod != http.MethodPost {
+		t.Errorf("request method = %q; want POST", gotMethod)
+	}
+	if gotPath != wantPath {
+		t.Errorf("request path = %q; want %q", gotPath, wantPath)
+	}
+	if !strings.Contains(gotContentType, "application/json") {
+		t.Errorf("Content-Type = %q; want application/json", gotContentType)
+	}
+	if gotUser != "" || gotPass != "secret" {
+		t.Errorf("BasicAuth = (%q, %q); want (\"\", \"secret\")", gotUser, gotPass)
+	}
+	wantBody := `{"reason":"deploying hotfix"}`
+	if gotBody != wantBody {
+		t.Errorf("request body = %q; want %q", gotBody, wantBody)
+	}
+}
+
+// TestLockStack_Error verifies that LockStack returns an error containing the
+// status code and body when the server responds with 422.
+func TestLockStack_Error(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		_, _ = fmt.Fprint(w, `{"error":"stack already locked"}`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	if err == nil {
+		t.Fatal("LockStack() error = nil; want non-nil error for 422 response")
+	}
+	if !strings.Contains(err.Error(), "422") {
+		t.Errorf("LockStack() error = %v; want error containing status code 422", err)
+	}
+	if !strings.Contains(err.Error(), "stack already locked") {
+		t.Errorf("LockStack() error = %v; want error containing response body", err)
 	}
 }
