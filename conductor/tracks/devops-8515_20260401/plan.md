@@ -99,7 +99,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
   - Run `go get golang.org/x/sync` to add the errgroup dependency.
   - Update `tech-stack.md` to document the new dependency.
 
-- [ ] **Task 3.2: Implement LockAll**
+- [x] **Task 3.2: Implement LockAll** [2e2bfb3]
   - Add `LockAll(reason string) error` method on `*Client`.
   - Calls `ListAllStacks()`, then locks each stack concurrently using `errgroup.Group`.
   - Use `g.SetLimit(10)` to cap concurrency and avoid overwhelming the API.
