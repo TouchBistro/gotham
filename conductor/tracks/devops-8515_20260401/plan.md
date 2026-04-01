@@ -89,7 +89,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 3: Bulk Operations
+## Phase 3: Bulk Operations [checkpoint: 09911a3]
 
 **Goal:** Implement `LockAll` and `UnlockAll` with concurrent execution.
 
