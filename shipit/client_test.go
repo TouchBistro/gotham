@@ -546,6 +546,106 @@ func TestLockAll_ZeroStacks(t *testing.T) {
 	}
 }
 
+// --- UnlockAll tests ---
+
+// TestUnlockAll_Success verifies that UnlockAll sends an unlock request to every
+// stack returned by ListAllStacks and returns no error when all succeed.
+func TestUnlockAll_Success(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	unlockedIDs := make(map[string]int)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// DELETE /api/stacks/{stack_id}/lock
+		unlockedIDs[r.URL.Path]++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockAll()
+	if err != nil {
+		t.Fatalf("UnlockAll() error = %v; want nil", err)
+	}
+
+	for _, s := range stacks {
+		wantPath := "/api/stacks/" + s.StackID() + "/lock"
+		if unlockedIDs[wantPath] != 1 {
+			t.Errorf("stack %q: unlock request count = %d; want 1", s.StackID(), unlockedIDs[wantPath])
+		}
+	}
+}
+
+// TestUnlockAll_OneStackFails verifies that UnlockAll returns an error when one
+// stack fails to unlock.
+func TestUnlockAll_OneStackFails(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// Fail the unlock for repo-b
+		if strings.Contains(r.URL.Path, "repo-b") {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, `{"error":"stack not found"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockAll()
+	if err == nil {
+		t.Fatal("UnlockAll() error = nil; want non-nil error when a stack fails to unlock")
+	}
+}
+
+// TestUnlockAll_ZeroStacks verifies that UnlockAll returns no error and makes no
+// unlock requests when ListAllStacks returns an empty slice.
+func TestUnlockAll_ZeroStacks(t *testing.T) {
+	unlockCallCount := 0
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprint(w, "[]")
+			return
+		}
+		unlockCallCount++
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockAll()
+	if err != nil {
+		t.Fatalf("UnlockAll() error = %v; want nil for zero stacks", err)
+	}
+	if unlockCallCount != 0 {
+		t.Errorf("unlock request count = %d; want 0 for zero stacks", unlockCallCount)
+	}
+}
+
 // --- parseLinkNextSince tests ---
 
 // TestParseLinkNextSince_NoNext verifies that an empty string is returned when

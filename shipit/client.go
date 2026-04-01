@@ -164,6 +164,28 @@ func (c *Client) LockAll(reason string) error {
 	return g.Wait()
 }
 
+// UnlockAll unlocks every stack returned by ListAllStacks concurrently.
+// Concurrency is capped at 10 goroutines to avoid overwhelming the API.
+// It returns an error if any individual unlock operation fails.
+func (c *Client) UnlockAll() error {
+	stacks, err := c.ListAllStacks()
+	if err != nil {
+		return fmt.Errorf("shipit: listing stacks for UnlockAll: %w", err)
+	}
+
+	var g errgroup.Group
+	g.SetLimit(10)
+
+	for _, s := range stacks {
+		stackID := s.StackID()
+		g.Go(func() error {
+			return c.UnlockStack(stackID)
+		})
+	}
+
+	return g.Wait()
+}
+
 // UnlockStack unlocks the stack identified by stackID (repo_owner/repo_name/environment).
 // It sends a DELETE to {base_uri}/api/stacks/{stack_id}/lock with Basic Auth.
 func (c *Client) UnlockStack(stackID string) error {
