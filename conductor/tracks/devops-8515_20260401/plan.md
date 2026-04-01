@@ -31,7 +31,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
   - Add a `StackID()` method on `Stack` that returns `repo_owner/repo_name/environment`.
   - TDD: Test `StackID()` returns the correct concatenation.
 
-- [ ] **Task 1.2: Implement Client constructor**
+- [x] **Task 1.2: Implement Client constructor** [17ab64a]
   - Create `client.go` with a `Client` struct containing the base URI and an `*http.Client`.
   - Implement a builder-style constructor: `NewClient(baseURI, apiPassword string) *Client`.
   - Store the Basic Auth credentials (empty username, apiPassword) for use in a helper method `setAuth(req *http.Request)` that sets the Authorization header.
