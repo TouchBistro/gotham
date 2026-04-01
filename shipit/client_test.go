@@ -204,6 +204,55 @@ func TestListAllStacks_EmptyResponse(t *testing.T) {
 	}
 }
 
+// TestListAllStacks_NetworkError verifies that a network-level failure (server closed
+// before response) is returned as a wrapped error.
+func TestListAllStacks_NetworkError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Hijack the connection and close it immediately to provoke a network error.
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "hijack not supported", http.StatusInternalServerError)
+			return
+		}
+		conn, _, _ := hj.Hijack()
+		conn.Close()
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	_, err := c.ListAllStacks()
+	if err == nil {
+		t.Fatal("ListAllStacks() error = nil; want non-nil error on network failure")
+	}
+}
+
+// TestListAllStacks_InvalidJSON verifies that malformed JSON in the response body
+// is returned as a wrapped error.
+func TestListAllStacks_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, `not-valid-json`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	_, err := c.ListAllStacks()
+	if err == nil {
+		t.Fatal("ListAllStacks() error = nil; want non-nil error on invalid JSON")
+	}
+}
+
+// TestListAllStacks_InvalidBaseURI verifies that an invalid base URI that prevents
+// request creation is returned as an error.
+func TestListAllStacks_InvalidBaseURI(t *testing.T) {
+	c := NewClient("://invalid-uri", "secret")
+	_, err := c.ListAllStacks()
+	if err == nil {
+		t.Fatal("ListAllStacks() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
 // --- LockStack tests ---
 
 // TestLockStack_Success verifies that LockStack sends a correct POST request and
@@ -275,6 +324,37 @@ func TestLockStack_Error(t *testing.T) {
 	}
 }
 
+// TestLockStack_NetworkError verifies that a network-level failure during LockStack
+// is returned as a wrapped error.
+func TestLockStack_NetworkError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "hijack not supported", http.StatusInternalServerError)
+			return
+		}
+		conn, _, _ := hj.Hijack()
+		conn.Close()
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	if err == nil {
+		t.Fatal("LockStack() error = nil; want non-nil error on network failure")
+	}
+}
+
+// TestLockStack_InvalidBaseURI verifies that an invalid base URI that prevents
+// request creation is returned as an error.
+func TestLockStack_InvalidBaseURI(t *testing.T) {
+	c := NewClient("://invalid-uri", "secret")
+	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	if err == nil {
+		t.Fatal("LockStack() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
 // --- UnlockStack tests ---
 
 // TestUnlockStack_Success verifies that UnlockStack sends a correct DELETE request
@@ -330,5 +410,64 @@ func TestUnlockStack_Error(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "stack not found") {
 		t.Errorf("UnlockStack() error = %v; want error containing response body", err)
+	}
+}
+
+// TestUnlockStack_NetworkError verifies that a network-level failure during UnlockStack
+// is returned as a wrapped error.
+func TestUnlockStack_NetworkError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		hj, ok := w.(http.Hijacker)
+		if !ok {
+			http.Error(w, "hijack not supported", http.StatusInternalServerError)
+			return
+		}
+		conn, _, _ := hj.Hijack()
+		conn.Close()
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockStack("touchbistro/repo-a/production")
+	if err == nil {
+		t.Fatal("UnlockStack() error = nil; want non-nil error on network failure")
+	}
+}
+
+// TestUnlockStack_InvalidBaseURI verifies that an invalid base URI that prevents
+// request creation is returned as an error.
+func TestUnlockStack_InvalidBaseURI(t *testing.T) {
+	c := NewClient("://invalid-uri", "secret")
+	err := c.UnlockStack("touchbistro/repo-a/production")
+	if err == nil {
+		t.Fatal("UnlockStack() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
+// --- parseLinkNextSince tests ---
+
+// TestParseLinkNextSince_NoNext verifies that an empty string is returned when
+// there is no rel=next in the Link header.
+func TestParseLinkNextSince_NoNext(t *testing.T) {
+	result := parseLinkNextSince(`</api/stacks?page_size=50>; rel="prev"`)
+	if result != "" {
+		t.Errorf("parseLinkNextSince() = %q; want empty string", result)
+	}
+}
+
+// TestParseLinkNextSince_WithNext verifies that the since value is extracted from
+// a Link header containing rel=next.
+func TestParseLinkNextSince_WithNext(t *testing.T) {
+	result := parseLinkNextSince(`</api/stacks?page_size=50&since=42>; rel="next"`)
+	if result != "42" {
+		t.Errorf("parseLinkNextSince() = %q; want %q", result, "42")
+	}
+}
+
+// TestParseLinkNextSince_EmptyHeader verifies that an empty header returns empty string.
+func TestParseLinkNextSince_EmptyHeader(t *testing.T) {
+	result := parseLinkNextSince("")
+	if result != "" {
+		t.Errorf("parseLinkNextSince() = %q; want empty string", result)
 	}
 }
