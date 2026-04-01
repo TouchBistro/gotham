@@ -109,7 +109,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - One stack fails to lock -- error is returned, other locks still attempted.
     - Zero stacks -- no error, no lock calls made.
 
-- [ ] **Task 3.3: Implement UnlockAll**
+- [x] **Task 3.3: Implement UnlockAll** [02d203a]
   - Add `UnlockAll() error` method on `*Client`.
   - Calls `ListAllStacks()`, then unlocks each stack concurrently using `errgroup.Group`.
   - Use `g.SetLimit(10)` to cap concurrency.
