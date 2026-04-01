@@ -20,6 +20,7 @@
 | `github.com/pkg/errors` | Error wrapping with stack traces |
 | `github.com/TouchBistro/goutils` | Internal TouchBistro Go utilities |
 | `github.com/lib/pq` | PostgreSQL driver — provides `pq.Array` for passing Go slices as PostgreSQL array parameters in batch INSERT, UPDATE, and DELETE operations (used by `sql/qb`) |
+| `golang.org/x/sync` | Structured concurrency with errgroup for bulk operations |
 
 ## Package Structure
 
