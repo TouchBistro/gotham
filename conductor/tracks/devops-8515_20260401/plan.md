@@ -64,7 +64,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - HTTP error response -- returns wrapped error.
     - Empty response (zero stacks) -- returns empty slice, no error.
 
-- [ ] **Task 2.2: Implement LockStack**
+- [x] **Task 2.2: Implement LockStack** [846febb]
   - Add `LockStack(stackID, reason string) error` method on `*Client`.
   - Sends `POST {base_uri}/api/stacks/{stack_id}/lock` with JSON body `{"reason": "<reason>"}`.
   - Sets `Content-Type: application/json` and Basic Auth headers.
