@@ -73,7 +73,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Successful lock (200 response) -- no error, verify request method/path/body/headers.
     - Failed lock (422 response) -- returns error with status code and body context.
 
-- [ ] **Task 2.3: Implement UnlockStack**
+- [x] **Task 2.3: Implement UnlockStack** [30636a1]
   - Add `UnlockStack(stackID string) error` method on `*Client`.
   - Sends `DELETE {base_uri}/api/stacks/{stack_id}/lock`.
   - Sets Basic Auth header.
