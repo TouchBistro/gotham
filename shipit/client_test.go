@@ -274,3 +274,61 @@ func TestLockStack_Error(t *testing.T) {
 		t.Errorf("LockStack() error = %v; want error containing response body", err)
 	}
 }
+
+// --- UnlockStack tests ---
+
+// TestUnlockStack_Success verifies that UnlockStack sends a correct DELETE request
+// and returns no error on a 204 response.
+func TestUnlockStack_Success(t *testing.T) {
+	const stackID = "touchbistro/repo-a/production"
+
+	var gotMethod, gotPath string
+	var gotUser, gotPass string
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotMethod = r.Method
+		gotPath = r.URL.Path
+		gotUser, gotPass, _ = r.BasicAuth()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockStack(stackID)
+	if err != nil {
+		t.Fatalf("UnlockStack() error = %v; want nil", err)
+	}
+
+	wantPath := "/api/stacks/" + stackID + "/lock"
+	if gotMethod != http.MethodDelete {
+		t.Errorf("request method = %q; want DELETE", gotMethod)
+	}
+	if gotPath != wantPath {
+		t.Errorf("request path = %q; want %q", gotPath, wantPath)
+	}
+	if gotUser != "" || gotPass != "secret" {
+		t.Errorf("BasicAuth = (%q, %q); want (\"\", \"secret\")", gotUser, gotPass)
+	}
+}
+
+// TestUnlockStack_Error verifies that UnlockStack returns an error with context
+// when the server responds with 404.
+func TestUnlockStack_Error(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = fmt.Fprint(w, `{"error":"stack not found"}`)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockStack("touchbistro/repo-a/production")
+	if err == nil {
+		t.Fatal("UnlockStack() error = nil; want non-nil error for 404 response")
+	}
+	if !strings.Contains(err.Error(), "404") {
+		t.Errorf("UnlockStack() error = %v; want error containing status code 404", err)
+	}
+	if !strings.Contains(err.Error(), "stack not found") {
+		t.Errorf("UnlockStack() error = %v; want error containing response body", err)
+	}
+}

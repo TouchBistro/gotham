@@ -139,3 +139,29 @@ func (c *Client) LockStack(stackID, reason string) error {
 	}
 	return nil
 }
+
+// UnlockStack unlocks the stack identified by stackID (repo_owner/repo_name/environment).
+// It sends a DELETE to {base_uri}/api/stacks/{stack_id}/lock with Basic Auth.
+func (c *Client) UnlockStack(stackID string) error {
+	endpoint := fmt.Sprintf("%s/api/stacks/%s/lock", c.baseURI, stackID)
+	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	if err != nil {
+		return fmt.Errorf("shipit: creating unlock stack request: %w", err)
+	}
+	c.setAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return fmt.Errorf("shipit: executing unlock stack request: %w", err)
+	}
+	body, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if err != nil {
+		return fmt.Errorf("shipit: reading unlock stack response body: %w", err)
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("shipit: unlock stack %q returned status %d: %s", stackID, resp.StatusCode, string(body))
+	}
+	return nil
+}
