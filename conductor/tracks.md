@@ -13,3 +13,10 @@ Created: 2026-03-13
 Branch: `feat/devops-8478`
 Type: feature
 Created: 2026-03-17
+
+## [ ] Track: gotham: add shipit client package [devops-8515_20260401]
+
+(Jira: DEVOPS-8515)
+Branch: `feat/devops-8515-shipit-client`
+Type: feature
+Created: 2026-04-01
