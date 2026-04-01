@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"regexp"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 )
 
 // Client holds the configuration and HTTP client required to interact
@@ -138,6 +140,28 @@ func (c *Client) LockStack(stackID, reason string) error {
 		return fmt.Errorf("shipit: lock stack %q returned status %d: %s", stackID, resp.StatusCode, string(body))
 	}
 	return nil
+}
+
+// LockAll locks every stack returned by ListAllStacks concurrently, passing reason
+// to each LockStack call. Concurrency is capped at 10 goroutines to avoid
+// overwhelming the API. It returns an error if any individual lock operation fails.
+func (c *Client) LockAll(reason string) error {
+	stacks, err := c.ListAllStacks()
+	if err != nil {
+		return fmt.Errorf("shipit: listing stacks for LockAll: %w", err)
+	}
+
+	var g errgroup.Group
+	g.SetLimit(10)
+
+	for _, s := range stacks {
+		stackID := s.StackID()
+		g.Go(func() error {
+			return c.LockStack(stackID, reason)
+		})
+	}
+
+	return g.Wait()
 }
 
 // UnlockStack unlocks the stack identified by stackID (repo_owner/repo_name/environment).

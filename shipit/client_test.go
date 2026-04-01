@@ -446,6 +446,108 @@ func TestUnlockStack_InvalidBaseURI(t *testing.T) {
 
 // --- parseLinkNextSince tests ---
 
+// --- LockAll tests ---
+
+// TestLockAll_Success verifies that LockAll sends a lock request to every stack
+// returned by ListAllStacks and returns no error when all succeed.
+func TestLockAll_Success(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	lockedIDs := make(map[string]int)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// POST /api/stacks/{stack_id}/lock
+		lockedIDs[r.URL.Path]++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockAll("maintenance window")
+	if err != nil {
+		t.Fatalf("LockAll() error = %v; want nil", err)
+	}
+
+	for _, s := range stacks {
+		wantPath := "/api/stacks/" + s.StackID() + "/lock"
+		if lockedIDs[wantPath] != 1 {
+			t.Errorf("stack %q: lock request count = %d; want 1", s.StackID(), lockedIDs[wantPath])
+		}
+	}
+}
+
+// TestLockAll_OneStackFails verifies that LockAll returns an error when one stack
+// fails to lock.
+func TestLockAll_OneStackFails(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// Fail the lock for repo-b
+		if strings.Contains(r.URL.Path, "repo-b") {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = fmt.Fprint(w, `{"error":"already locked"}`)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockAll("reason")
+	if err == nil {
+		t.Fatal("LockAll() error = nil; want non-nil error when a stack fails to lock")
+	}
+}
+
+// TestLockAll_ZeroStacks verifies that LockAll returns no error and makes no lock
+// requests when ListAllStacks returns an empty slice.
+func TestLockAll_ZeroStacks(t *testing.T) {
+	lockCallCount := 0
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprint(w, "[]")
+			return
+		}
+		lockCallCount++
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockAll("reason")
+	if err != nil {
+		t.Fatalf("LockAll() error = %v; want nil for zero stacks", err)
+	}
+	if lockCallCount != 0 {
+		t.Errorf("lock request count = %d; want 0 for zero stacks", lockCallCount)
+	}
+}
+
+// --- parseLinkNextSince tests ---
+
 // TestParseLinkNextSince_NoNext verifies that an empty string is returned when
 // there is no rel=next in the Link header.
 func TestParseLinkNextSince_NoNext(t *testing.T) {
