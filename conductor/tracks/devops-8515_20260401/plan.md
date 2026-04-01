@@ -22,7 +22,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 1.1: Create package and Stack struct**
+- [x] **Task 1.1: Create package and Stack struct** [5b1fb2a]
   - Create `shipit/` directory with `doc.go` (package comment) and `types.go`.
   - Define the `Stack` struct with all fields from the Shipit API schema, using PascalCase field names and snake_case JSON tags.
   - Handle nullable fields (`archived_since`) with pointer types.
