@@ -2,12 +2,15 @@ package shipit
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
 	"regexp"
+	"sync"
 	"time"
 
 	"golang.org/x/sync/errgroup"
@@ -42,6 +45,19 @@ func (c *Client) setAuth(req *http.Request) {
 	req.SetBasicAuth("", c.apiPassword)
 }
 
+// reValidStackID matches a stack ID of the form "owner/repo/environment" where
+// each segment contains only alphanumeric characters, hyphens, underscores, or dots.
+var reValidStackID = regexp.MustCompile(`^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$`)
+
+// validateStackID returns an error if stackID does not match the expected
+// "owner/repo/environment" format.
+func validateStackID(stackID string) error {
+	if !reValidStackID.MatchString(stackID) {
+		return fmt.Errorf("shipit: invalid stack ID %q: must be in the format owner/repo/environment", stackID)
+	}
+	return nil
+}
+
 // linkNextSince parses a standard HTTP Link header value and returns the value
 // of the `since` query parameter from the URL with rel="next".
 // Returns an empty string if no rel=next link is present.
@@ -61,12 +77,12 @@ func parseLinkNextSince(header string) string {
 
 // ListAllStacks retrieves all stacks from the Shipit API, following pagination
 // automatically. It returns the full slice of stacks across all pages.
-func (c *Client) ListAllStacks() ([]Stack, error) {
+func (c *Client) ListAllStacks(ctx context.Context) ([]Stack, error) {
 	var all []Stack
 	endpoint := fmt.Sprintf("%s/api/stacks?page_size=50", c.baseURI)
 
 	for endpoint != "" {
-		req, err := http.NewRequest(http.MethodGet, endpoint, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 		if err != nil {
 			return nil, fmt.Errorf("shipit: creating list stacks request: %w", err)
 		}
@@ -112,7 +128,11 @@ func (c *Client) ListAllStacks() ([]Stack, error) {
 // LockStack locks the stack identified by stackID (repo_owner/repo_name/environment)
 // with the supplied reason. It sends a POST to {base_uri}/api/stacks/{stack_id}/lock
 // with a JSON body containing the reason.
-func (c *Client) LockStack(stackID, reason string) error {
+func (c *Client) LockStack(ctx context.Context, stackID, reason string) error {
+	if err := validateStackID(stackID); err != nil {
+		return err
+	}
+
 	payload, err := json.Marshal(struct {
 		Reason string `json:"reason"`
 	}{Reason: reason})
@@ -121,7 +141,7 @@ func (c *Client) LockStack(stackID, reason string) error {
 	}
 
 	endpoint := fmt.Sprintf("%s/api/stacks/%s/lock", c.baseURI, stackID)
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(payload))
 	if err != nil {
 		return fmt.Errorf("shipit: creating lock stack request: %w", err)
 	}
@@ -148,34 +168,54 @@ func (c *Client) LockStack(stackID, reason string) error {
 
 // LockAll locks every stack returned by ListAllStacks concurrently, passing reason
 // to each LockStack call. Concurrency is capped at 10 goroutines to avoid
-// overwhelming the API. It returns an error if any individual lock operation fails.
-func (c *Client) LockAll(reason string) error {
-	stacks, err := c.ListAllStacks()
+// overwhelming the API. All lock operations are attempted regardless of individual
+// failures. The returned error, if non-nil, is a joined error containing every
+// individual failure, so callers can inspect all stacks that failed to lock.
+func (c *Client) LockAll(ctx context.Context, reason string) error {
+	stacks, err := c.ListAllStacks(ctx)
 	if err != nil {
 		return fmt.Errorf("shipit: listing stacks for LockAll: %w", err)
 	}
 
+	var (
+		mu   sync.Mutex
+		errs []error
+	)
+
 	var g errgroup.Group
 	g.SetLimit(10)
 
 	for _, s := range stacks {
 		stackID := s.StackID()
 		g.Go(func() error {
-			return c.LockStack(stackID, reason)
+			if err := c.LockStack(ctx, stackID, reason); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
+			return nil
 		})
 	}
 
-	return g.Wait()
+	g.Wait()
+	return errors.Join(errs...)
 }
 
 // UnlockAll unlocks every stack returned by ListAllStacks concurrently.
 // Concurrency is capped at 10 goroutines to avoid overwhelming the API.
-// It returns an error if any individual unlock operation fails.
-func (c *Client) UnlockAll() error {
-	stacks, err := c.ListAllStacks()
+// All unlock operations are attempted regardless of individual failures.
+// The returned error, if non-nil, is a joined error containing every
+// individual failure, so callers can inspect all stacks that failed to unlock.
+func (c *Client) UnlockAll(ctx context.Context) error {
+	stacks, err := c.ListAllStacks(ctx)
 	if err != nil {
 		return fmt.Errorf("shipit: listing stacks for UnlockAll: %w", err)
 	}
+
+	var (
+		mu   sync.Mutex
+		errs []error
+	)
 
 	var g errgroup.Group
 	g.SetLimit(10)
@@ -183,18 +223,28 @@ func (c *Client) UnlockAll() error {
 	for _, s := range stacks {
 		stackID := s.StackID()
 		g.Go(func() error {
-			return c.UnlockStack(stackID)
+			if err := c.UnlockStack(ctx, stackID); err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
+			return nil
 		})
 	}
 
-	return g.Wait()
+	g.Wait()
+	return errors.Join(errs...)
 }
 
 // UnlockStack unlocks the stack identified by stackID (repo_owner/repo_name/environment).
 // It sends a DELETE to {base_uri}/api/stacks/{stack_id}/lock with Basic Auth.
-func (c *Client) UnlockStack(stackID string) error {
+func (c *Client) UnlockStack(ctx context.Context, stackID string) error {
+	if err := validateStackID(stackID); err != nil {
+		return err
+	}
+
 	endpoint := fmt.Sprintf("%s/api/stacks/%s/lock", c.baseURI, stackID)
-	req, err := http.NewRequest(http.MethodDelete, endpoint, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
 	if err != nil {
 		return fmt.Errorf("shipit: creating unlock stack request: %w", err)
 	}

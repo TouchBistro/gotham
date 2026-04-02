@@ -6,7 +6,7 @@
 // Basic usage:
 //
 //	c := shipit.NewClient("https://shipit.example.com", "s3cr3t-password")
-//	stacks, err := c.ListAllStacks()
+//	stacks, err := c.ListAllStacks(ctx)
 //	if err != nil {
 //	    log.Fatal(err)
 //	}

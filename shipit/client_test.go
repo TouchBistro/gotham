@@ -1,7 +1,9 @@
 package shipit
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -114,7 +116,7 @@ func TestListAllStacks_SinglePage(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	got, err := c.ListAllStacks()
+	got, err := c.ListAllStacks(context.Background())
 	if err != nil {
 		t.Fatalf("ListAllStacks() error = %v; want nil", err)
 	}
@@ -152,7 +154,7 @@ func TestListAllStacks_MultiplePages(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	got, err := c.ListAllStacks()
+	got, err := c.ListAllStacks(context.Background())
 	if err != nil {
 		t.Fatalf("ListAllStacks() error = %v; want nil", err)
 	}
@@ -175,7 +177,7 @@ func TestListAllStacks_HTTPError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	_, err := c.ListAllStacks()
+	_, err := c.ListAllStacks(context.Background())
 	if err == nil {
 		t.Fatal("ListAllStacks() error = nil; want non-nil error for 500 response")
 	}
@@ -195,7 +197,7 @@ func TestListAllStacks_EmptyResponse(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	got, err := c.ListAllStacks()
+	got, err := c.ListAllStacks(context.Background())
 	if err != nil {
 		t.Fatalf("ListAllStacks() error = %v; want nil", err)
 	}
@@ -220,7 +222,7 @@ func TestListAllStacks_NetworkError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	_, err := c.ListAllStacks()
+	_, err := c.ListAllStacks(context.Background())
 	if err == nil {
 		t.Fatal("ListAllStacks() error = nil; want non-nil error on network failure")
 	}
@@ -237,7 +239,7 @@ func TestListAllStacks_InvalidJSON(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	_, err := c.ListAllStacks()
+	_, err := c.ListAllStacks(context.Background())
 	if err == nil {
 		t.Fatal("ListAllStacks() error = nil; want non-nil error on invalid JSON")
 	}
@@ -247,9 +249,28 @@ func TestListAllStacks_InvalidJSON(t *testing.T) {
 // request creation is returned as an error.
 func TestListAllStacks_InvalidBaseURI(t *testing.T) {
 	c := NewClient("://invalid-uri", "secret")
-	_, err := c.ListAllStacks()
+	_, err := c.ListAllStacks(context.Background())
 	if err == nil {
 		t.Fatal("ListAllStacks() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
+// TestListAllStacks_CancelledContext verifies that a cancelled context aborts the request.
+func TestListAllStacks_CancelledContext(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = fmt.Fprint(w, "[]")
+	}))
+	defer srv.Close()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	c := NewClient(srv.URL, "secret")
+	_, err := c.ListAllStacks(ctx)
+	if err == nil {
+		t.Fatal("ListAllStacks() error = nil; want non-nil error for cancelled context")
 	}
 }
 
@@ -278,7 +299,7 @@ func TestLockStack_Success(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockStack(stackID, reason)
+	err := c.LockStack(context.Background(), stackID, reason)
 	if err != nil {
 		t.Fatalf("LockStack() error = %v; want nil", err)
 	}
@@ -312,7 +333,7 @@ func TestLockStack_Error(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	err := c.LockStack(context.Background(), "touchbistro/repo-a/production", "reason")
 	if err == nil {
 		t.Fatal("LockStack() error = nil; want non-nil error for 422 response")
 	}
@@ -339,7 +360,7 @@ func TestLockStack_NetworkError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	err := c.LockStack(context.Background(), "touchbistro/repo-a/production", "reason")
 	if err == nil {
 		t.Fatal("LockStack() error = nil; want non-nil error on network failure")
 	}
@@ -349,9 +370,41 @@ func TestLockStack_NetworkError(t *testing.T) {
 // request creation is returned as an error.
 func TestLockStack_InvalidBaseURI(t *testing.T) {
 	c := NewClient("://invalid-uri", "secret")
-	err := c.LockStack("touchbistro/repo-a/production", "reason")
+	err := c.LockStack(context.Background(), "touchbistro/repo-a/production", "reason")
 	if err == nil {
 		t.Fatal("LockStack() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
+// TestLockStack_InvalidStackID verifies that LockStack rejects stack IDs that
+// do not match the expected owner/repo/environment format.
+func TestLockStack_InvalidStackID(t *testing.T) {
+	c := NewClient("https://shipit.example.com", "secret")
+
+	tests := []struct {
+		name    string
+		stackID string
+	}{
+		{"empty string", ""},
+		{"single segment", "repo-a"},
+		{"two segments", "owner/repo-a"},
+		{"four segments", "owner/repo-a/production/extra"},
+		{"contains query char", "owner/repo-a/prod?x=1"},
+		{"contains hash", "owner/repo-a/prod#frag"},
+		{"contains space", "owner/repo a/production"},
+		{"empty segment", "owner//production"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := c.LockStack(context.Background(), tt.stackID, "reason")
+			if err == nil {
+				t.Fatalf("LockStack(%q) error = nil; want invalid stack ID error", tt.stackID)
+			}
+			if !strings.Contains(err.Error(), "invalid stack ID") {
+				t.Errorf("LockStack(%q) error = %v; want error containing 'invalid stack ID'", tt.stackID, err)
+			}
+		})
 	}
 }
 
@@ -374,7 +427,7 @@ func TestUnlockStack_Success(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockStack(stackID)
+	err := c.UnlockStack(context.Background(), stackID)
 	if err != nil {
 		t.Fatalf("UnlockStack() error = %v; want nil", err)
 	}
@@ -401,7 +454,7 @@ func TestUnlockStack_Error(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockStack("touchbistro/repo-a/production")
+	err := c.UnlockStack(context.Background(), "touchbistro/repo-a/production")
 	if err == nil {
 		t.Fatal("UnlockStack() error = nil; want non-nil error for 404 response")
 	}
@@ -428,7 +481,7 @@ func TestUnlockStack_NetworkError(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockStack("touchbistro/repo-a/production")
+	err := c.UnlockStack(context.Background(), "touchbistro/repo-a/production")
 	if err == nil {
 		t.Fatal("UnlockStack() error = nil; want non-nil error on network failure")
 	}
@@ -438,9 +491,41 @@ func TestUnlockStack_NetworkError(t *testing.T) {
 // request creation is returned as an error.
 func TestUnlockStack_InvalidBaseURI(t *testing.T) {
 	c := NewClient("://invalid-uri", "secret")
-	err := c.UnlockStack("touchbistro/repo-a/production")
+	err := c.UnlockStack(context.Background(), "touchbistro/repo-a/production")
 	if err == nil {
 		t.Fatal("UnlockStack() error = nil; want non-nil error for invalid base URI")
+	}
+}
+
+// TestUnlockStack_InvalidStackID verifies that UnlockStack rejects stack IDs that
+// do not match the expected owner/repo/environment format.
+func TestUnlockStack_InvalidStackID(t *testing.T) {
+	c := NewClient("https://shipit.example.com", "secret")
+
+	tests := []struct {
+		name    string
+		stackID string
+	}{
+		{"empty string", ""},
+		{"single segment", "repo-a"},
+		{"two segments", "owner/repo-a"},
+		{"four segments", "owner/repo-a/production/extra"},
+		{"contains query char", "owner/repo-a/prod?x=1"},
+		{"contains hash", "owner/repo-a/prod#frag"},
+		{"contains space", "owner/repo a/production"},
+		{"empty segment", "owner//production"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := c.UnlockStack(context.Background(), tt.stackID)
+			if err == nil {
+				t.Fatalf("UnlockStack(%q) error = nil; want invalid stack ID error", tt.stackID)
+			}
+			if !strings.Contains(err.Error(), "invalid stack ID") {
+				t.Errorf("UnlockStack(%q) error = %v; want error containing 'invalid stack ID'", tt.stackID, err)
+			}
+		})
 	}
 }
 
@@ -473,7 +558,7 @@ func TestLockAll_Success(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockAll("maintenance window")
+	err := c.LockAll(context.Background(), "maintenance window")
 	if err != nil {
 		t.Fatalf("LockAll() error = %v; want nil", err)
 	}
@@ -513,9 +598,57 @@ func TestLockAll_OneStackFails(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockAll("reason")
+	err := c.LockAll(context.Background(), "reason")
 	if err == nil {
 		t.Fatal("LockAll() error = nil; want non-nil error when a stack fails to lock")
+	}
+}
+
+// TestLockAll_MultipleStacksFail verifies that LockAll collects errors from all
+// failed stacks rather than returning only the first failure.
+func TestLockAll_MultipleStacksFail(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+		makeStack(3, "repo-c"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// Fail repo-a and repo-c, succeed repo-b
+		if strings.Contains(r.URL.Path, "repo-a") || strings.Contains(r.URL.Path, "repo-c") {
+			w.WriteHeader(http.StatusUnprocessableEntity)
+			_, _ = fmt.Fprint(w, `{"error":"already locked"}`)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.LockAll(context.Background(), "reason")
+	if err == nil {
+		t.Fatal("LockAll() error = nil; want non-nil error when multiple stacks fail")
+	}
+
+	unwrapped := errors.Unwrap(err)
+	if unwrapped != nil {
+		// errors.Join returns a type whose Unwrap returns []error; verify via the joined string
+		t.Logf("LockAll() error = %v", err)
+	}
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, "repo-a") {
+		t.Errorf("LockAll() error missing repo-a failure: %v", err)
+	}
+	if !strings.Contains(errStr, "repo-c") {
+		t.Errorf("LockAll() error missing repo-c failure: %v", err)
 	}
 }
 
@@ -537,7 +670,7 @@ func TestLockAll_ZeroStacks(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.LockAll("reason")
+	err := c.LockAll(context.Background(), "reason")
 	if err != nil {
 		t.Fatalf("LockAll() error = %v; want nil for zero stacks", err)
 	}
@@ -573,7 +706,7 @@ func TestUnlockAll_Success(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockAll()
+	err := c.UnlockAll(context.Background())
 	if err != nil {
 		t.Fatalf("UnlockAll() error = %v; want nil", err)
 	}
@@ -613,9 +746,51 @@ func TestUnlockAll_OneStackFails(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockAll()
+	err := c.UnlockAll(context.Background())
 	if err == nil {
 		t.Fatal("UnlockAll() error = nil; want non-nil error when a stack fails to unlock")
+	}
+}
+
+// TestUnlockAll_MultipleStacksFail verifies that UnlockAll collects errors from all
+// failed stacks rather than returning only the first failure.
+func TestUnlockAll_MultipleStacksFail(t *testing.T) {
+	stacks := []Stack{
+		makeStack(1, "repo-a"),
+		makeStack(2, "repo-b"),
+		makeStack(3, "repo-c"),
+	}
+	stacksBody, _ := json.Marshal(stacks)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(stacksBody)
+			return
+		}
+		// Fail repo-a and repo-c, succeed repo-b
+		if strings.Contains(r.URL.Path, "repo-a") || strings.Contains(r.URL.Path, "repo-c") {
+			w.WriteHeader(http.StatusNotFound)
+			_, _ = fmt.Fprint(w, `{"error":"stack not found"}`)
+			return
+		}
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	c := NewClient(srv.URL, "secret")
+	err := c.UnlockAll(context.Background())
+	if err == nil {
+		t.Fatal("UnlockAll() error = nil; want non-nil error when multiple stacks fail")
+	}
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, "repo-a") {
+		t.Errorf("UnlockAll() error missing repo-a failure: %v", err)
+	}
+	if !strings.Contains(errStr, "repo-c") {
+		t.Errorf("UnlockAll() error missing repo-c failure: %v", err)
 	}
 }
 
@@ -637,7 +812,7 @@ func TestUnlockAll_ZeroStacks(t *testing.T) {
 	defer srv.Close()
 
 	c := NewClient(srv.URL, "secret")
-	err := c.UnlockAll()
+	err := c.UnlockAll(context.Background())
 	if err != nil {
 		t.Fatalf("UnlockAll() error = %v; want nil for zero stacks", err)
 	}
