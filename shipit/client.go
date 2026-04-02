@@ -197,7 +197,7 @@ func (c *Client) LockAll(ctx context.Context, reason string) error {
 		})
 	}
 
-	g.Wait()
+	_ = g.Wait()
 	return errors.Join(errs...)
 }
 
@@ -232,7 +232,7 @@ func (c *Client) UnlockAll(ctx context.Context) error {
 		})
 	}
 
-	g.Wait()
+	_ = g.Wait()
 	return errors.Join(errs...)
 }
 
