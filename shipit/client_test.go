@@ -215,7 +215,7 @@ func TestListAllStacks_NetworkError(t *testing.T) {
 			return
 		}
 		conn, _, _ := hj.Hijack()
-		conn.Close()
+		_ = conn.Close()
 	}))
 	defer srv.Close()
 
@@ -334,7 +334,7 @@ func TestLockStack_NetworkError(t *testing.T) {
 			return
 		}
 		conn, _, _ := hj.Hijack()
-		conn.Close()
+		_ = conn.Close()
 	}))
 	defer srv.Close()
 
@@ -423,7 +423,7 @@ func TestUnlockStack_NetworkError(t *testing.T) {
 			return
 		}
 		conn, _, _ := hj.Hijack()
-		conn.Close()
+		_ = conn.Close()
 	}))
 	defer srv.Close()
 

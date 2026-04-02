@@ -78,7 +78,9 @@ func (c *Client) ListAllStacks() ([]Stack, error) {
 		}
 
 		body, err := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+			err = closeErr
+		}
 		if err != nil {
 			return nil, fmt.Errorf("shipit: reading list stacks response body: %w", err)
 		}
@@ -131,7 +133,9 @@ func (c *Client) LockStack(stackID, reason string) error {
 		return fmt.Errorf("shipit: executing lock stack request: %w", err)
 	}
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
 	if err != nil {
 		return fmt.Errorf("shipit: reading lock stack response body: %w", err)
 	}
@@ -201,7 +205,9 @@ func (c *Client) UnlockStack(stackID string) error {
 		return fmt.Errorf("shipit: executing unlock stack request: %w", err)
 	}
 	body, err := io.ReadAll(resp.Body)
-	resp.Body.Close()
+	if closeErr := resp.Body.Close(); closeErr != nil && err == nil {
+		err = closeErr
+	}
 	if err != nil {
 		return fmt.Errorf("shipit: reading unlock stack response body: %w", err)
 	}
