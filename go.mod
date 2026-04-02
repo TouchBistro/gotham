@@ -1,6 +1,6 @@
 module github.com/TouchBistro/gotham
 
-go 1.22
+go 1.25.0
 
 require (
 	github.com/TouchBistro/goutils v0.5.0
