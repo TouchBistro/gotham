@@ -17,7 +17,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 1: Types, Builder, and Client Foundation
+## Phase 1: Types, Builder, and Client Foundation [checkpoint: 8f8be67]
 
 **Goal:** Establish the package structure, define response types, implement the builder-style constructor, and create shared HTTP helper methods.
 
@@ -49,7 +49,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - `doRequest` returns error with status code and body on non-2xx response.
     - `doRequest` propagates context cancellation.
 
-- [ ] **Task 1.3: Verification** -- Phase 1
+- [x] **Task 1.3: Verification** -- Phase 1 [8f8be67]
   - Run `go test -cover ./circleci/...` and verify >90% coverage for new code.
   - Run `go vet ./circleci/...` and `gofmt -l circleci/`.
   - Confirm all exported symbols have GoDoc comments. [checkpoint marker]
