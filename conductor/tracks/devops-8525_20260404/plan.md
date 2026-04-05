@@ -157,7 +157,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
   - Run `go vet ./circleci/...` and `gofmt -l circleci/`.
   - Ensure no linting issues.
 
-- [ ] **Task 4.2: Update project metadata**
+- [x] **Task 4.2: Update project metadata** [94021c6]
   - Update `conductor/tech-stack.md` to add `circleci/` to the package structure.
   - Update `conductor/tracks.md` with the new track entry.
 
