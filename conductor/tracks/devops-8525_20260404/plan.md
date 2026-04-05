@@ -62,7 +62,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 2.1: Implement GetProject**
+- [x] **Task 2.1: Implement GetProject** [b540d8b]
   - Add `GetProject(ctx context.Context, owner, repo string) (*Project, error)` method on `*Client`.
   - Calls `GET {v2BaseURL}/project/gh/{owner}/{repo}`.
   - Decodes response JSON into `*Project`.
