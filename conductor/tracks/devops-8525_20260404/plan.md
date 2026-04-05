@@ -34,7 +34,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
   - Use snake_case JSON tags matching CircleCI API field names.
   - TDD: Write `circleci/types_test.go` that unmarshals sample JSON fixtures into each struct and verifies key fields are correctly populated.
 
-- [ ] **Task 1.2: Implement ClientBuilder and Client**
+- [x] **Task 1.2: Implement ClientBuilder and Client** [8a28631]
   - Create `circleci/client.go` with:
     - `Client` struct containing v1 base URL, v2 base URL, API token, and `*http.Client`.
     - `ClientBuilder` struct with `WithToken(token string)`, `WithHTTPClient(c *http.Client)`, `WithBaseURLs(v1, v2 string)` chainable methods.
