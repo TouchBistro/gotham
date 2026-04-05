@@ -20,3 +20,10 @@ Created: 2026-03-17
 Branch: `feat/devops-8515-shipit-client`
 Type: feature
 Created: 2026-04-01
+
+## [ ] Track: gotham: add circleci client [devops-8525_20260404]
+
+(Jira: DEVOPS-8525)
+Branch: `feat/devops-8525`
+Type: feature
+Created: 2026-04-04
