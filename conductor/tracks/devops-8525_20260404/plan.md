@@ -87,7 +87,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Successful follow -- returns response struct, verifies POST method and path.
     - HTTP error response -- returns descriptive error.
 
-- [ ] **Task 2.4: Implement UnfollowProject**
+- [x] **Task 2.4: Implement UnfollowProject** [bf1d347]
   - Add `UnfollowProject(ctx context.Context, owner, repo string) (*UnfollowProjectResponse, error)` method on `*Client`.
   - Calls `POST {v1BaseURL}/project/github/{owner}/{repo}/unfollow`.
   - Decodes response JSON into `*UnfollowProjectResponse`.
