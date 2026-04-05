@@ -23,7 +23,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 1.1: Create package structure and response types**
+- [x] **Task 1.1: Create package structure and response types** [02131c3]
   - Create `circleci/` directory with `doc.go` (package comment).
   - Create `circleci/types.go` with response structs for all endpoints:
     - `Project` -- fields from CircleCI project response (slug, name, organization, VCS info, etc.).
