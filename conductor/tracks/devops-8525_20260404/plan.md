@@ -127,7 +127,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Empty response -- returns struct with empty items slice.
     - HTTP error response -- returns descriptive error.
 
-- [ ] **Task 3.3: Implement CancelWorkflow**
+- [x] **Task 3.3: Implement CancelWorkflow** [42cf823]
   - Add `CancelWorkflow(ctx context.Context, workflowID string) error` method on `*Client`.
   - Calls `POST {v2BaseURL}/workflow/{workflowID}/cancel`.
   - Returns nil on success (2xx).
