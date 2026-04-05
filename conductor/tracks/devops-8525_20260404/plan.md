@@ -102,7 +102,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 3: Pipeline and Workflow Endpoints
+## Phase 3: Pipeline and Workflow Endpoints [checkpoint: ae23f31]
 
 **Goal:** Implement `ListPipelines`, `ListWorkflows`, and `CancelWorkflow`.
 
@@ -138,7 +138,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Workflow not in cancellable state (409) -- returns error.
     - Verify request method (POST) and path.
 
-- [ ] **Task 3.4: Verification** -- Phase 3
+- [x] **Task 3.4: Verification** -- Phase 3 [ae23f31]
   - Run `go test -cover ./circleci/...` and verify >90% coverage.
   - Run `go vet ./circleci/...` and `gofmt -l circleci/`.
   - Review all error paths have descriptive messages. [checkpoint marker]
