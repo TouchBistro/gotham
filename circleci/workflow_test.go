@@ -160,3 +160,76 @@ func TestClient_ListWorkflows_VerifiesRequestPath(t *testing.T) {
 		t.Errorf("request method = %q; want %q", gotMethod, http.MethodGet)
 	}
 }
+
+func TestClient_CancelWorkflow_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"message":"Accepted."}`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	err := c.CancelWorkflow(context.Background(), "wf-abc-123")
+	if err != nil {
+		t.Fatalf("CancelWorkflow returned unexpected error: %v", err)
+	}
+}
+
+func TestClient_CancelWorkflow_NotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"message":"Workflow not found"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	err := c.CancelWorkflow(context.Background(), "nonexistent-wf")
+	if err == nil {
+		t.Fatal("CancelWorkflow returned nil error; want non-nil for 404 response")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "404") {
+		t.Errorf("error message %q does not contain status code 404", errMsg)
+	}
+	if !strings.Contains(errMsg, "Workflow not found") {
+		t.Errorf("error message %q does not contain body excerpt", errMsg)
+	}
+}
+
+func TestClient_CancelWorkflow_VerifiesRequestMethodAndPath(t *testing.T) {
+	var gotPath, gotMethod string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.Path
+		gotMethod = r.Method
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{}`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	err := c.CancelWorkflow(context.Background(), "wf-xyz-789")
+	if err != nil {
+		t.Fatalf("CancelWorkflow returned unexpected error: %v", err)
+	}
+
+	expectedPath := "/workflow/wf-xyz-789/cancel"
+	if gotPath != expectedPath {
+		t.Errorf("request path = %q; want %q", gotPath, expectedPath)
+	}
+	if gotMethod != http.MethodPost {
+		t.Errorf("request method = %q; want %q", gotMethod, http.MethodPost)
+	}
+}

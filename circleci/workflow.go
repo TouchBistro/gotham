@@ -25,3 +25,11 @@ func (c *Client) ListWorkflows(ctx context.Context, pipelineID string) (*ListWor
 	return &resp, nil
 }
 
+// CancelWorkflow cancels a running workflow by its ID using the CircleCI v2
+// API. It returns nil on success or a descriptive error on failure.
+func (c *Client) CancelWorkflow(ctx context.Context, workflowID string) error {
+	url := fmt.Sprintf("%s/workflow/%s/cancel", c.v2BaseURL, workflowID)
+
+	_, err := c.doRequest(ctx, http.MethodPost, url, nil)
+	return err
+}
