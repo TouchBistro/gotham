@@ -71,7 +71,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - HTTP error response (404) -- returns descriptive error.
     - Verify request path and auth header.
 
-- [ ] **Task 2.2: Implement GetProjectInsights**
+- [x] **Task 2.2: Implement GetProjectInsights** [f6d1c82]
   - Add `GetProjectInsights(ctx context.Context, owner, repo string) (*ProjectInsights, error)` method on `*Client`.
   - Calls `GET {v2BaseURL}/insights/gh/{owner}/{repo}/workflows`.
   - Decodes response JSON into `*ProjectInsights`.
