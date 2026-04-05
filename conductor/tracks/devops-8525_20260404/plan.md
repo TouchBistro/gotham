@@ -108,7 +108,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 3.1: Implement ListPipelines**
+- [x] **Task 3.1: Implement ListPipelines** [92924ab]
   - Add `ListPipelines(ctx context.Context, owner, repo string) (*ListPipelinesResponse, error)` method on `*Client`.
   - Calls `GET {v2BaseURL}/project/gh/{owner}/{repo}/pipeline`.
   - Decodes response JSON into `*ListPipelinesResponse` (contains `Items []Pipeline` and `NextPageToken string`).
