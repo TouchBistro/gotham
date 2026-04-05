@@ -187,8 +187,8 @@ func TestListPipelinesResponse_Unmarshal(t *testing.T) {
 
 	tests := []struct {
 		name string
-		got  interface{}
-		want interface{}
+		got  any
+		want any
 	}{
 		{"Items[0].ID", r.Items[0].ID, "pipeline-001"},
 		{"Items[0].State", r.Items[0].State, "created"},
