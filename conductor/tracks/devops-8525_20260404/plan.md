@@ -79,7 +79,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Successful response -- returns populated insights struct with workflow metrics.
     - HTTP error response -- returns descriptive error.
 
-- [ ] **Task 2.3: Implement FollowProject**
+- [x] **Task 2.3: Implement FollowProject** [bf1d347]
   - Add `FollowProject(ctx context.Context, owner, repo string) (*FollowProjectResponse, error)` method on `*Client`.
   - Calls `POST {v1BaseURL}/project/github/{owner}/{repo}/follow`.
   - Decodes response JSON into `*FollowProjectResponse`.
