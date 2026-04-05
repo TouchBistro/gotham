@@ -135,6 +135,30 @@ func TestClient_GetProjectInsights_HTTPError(t *testing.T) {
 	}
 }
 
+func TestClient_GetProjectInsights_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	insights, err := c.GetProjectInsights(context.Background(), "TouchBistro", "my-service")
+	if err == nil {
+		t.Fatal("GetProjectInsights returned nil error; want non-nil for invalid JSON")
+	}
+	if insights != nil {
+		t.Errorf("GetProjectInsights returned non-nil insights on error; want nil")
+	}
+	if !strings.Contains(err.Error(), "decoding GetProjectInsights response") {
+		t.Errorf("error message %q does not mention decoding failure", err.Error())
+	}
+}
+
 func TestClient_GetProjectInsights_VerifiesRequestPathAndAuth(t *testing.T) {
 	var gotPath, gotToken string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

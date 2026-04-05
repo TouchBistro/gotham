@@ -76,6 +76,30 @@ func TestClient_FollowProject_HTTPError(t *testing.T) {
 	}
 }
 
+func TestClient_FollowProject_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	resp, err := c.FollowProject(context.Background(), "TouchBistro", "my-service")
+	if err == nil {
+		t.Fatal("FollowProject returned nil error; want non-nil for invalid JSON")
+	}
+	if resp != nil {
+		t.Errorf("FollowProject returned non-nil response on error; want nil")
+	}
+	if !strings.Contains(err.Error(), "decoding FollowProject response") {
+		t.Errorf("error message %q does not mention decoding failure", err.Error())
+	}
+}
+
 func TestClient_UnfollowProject_Success(t *testing.T) {
 	var gotMethod, gotPath, gotToken string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -141,5 +165,29 @@ func TestClient_UnfollowProject_HTTPError(t *testing.T) {
 	}
 	if !strings.Contains(errMsg, "Forbidden") {
 		t.Errorf("error message %q does not contain body excerpt", errMsg)
+	}
+}
+
+func TestClient_UnfollowProject_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	resp, err := c.UnfollowProject(context.Background(), "TouchBistro", "my-service")
+	if err == nil {
+		t.Fatal("UnfollowProject returned nil error; want non-nil for invalid JSON")
+	}
+	if resp != nil {
+		t.Errorf("UnfollowProject returned non-nil response on error; want nil")
+	}
+	if !strings.Contains(err.Error(), "decoding UnfollowProject response") {
+		t.Errorf("error message %q does not mention decoding failure", err.Error())
 	}
 }

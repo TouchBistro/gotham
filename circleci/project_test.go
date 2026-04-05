@@ -95,6 +95,30 @@ func TestClient_GetProject_HTTPError(t *testing.T) {
 	}
 }
 
+func TestClient_GetProject_InvalidJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`not valid json`))
+	}))
+	defer srv.Close()
+
+	c := NewClientBuilder().
+		WithToken("test-token").
+		WithBaseURLs(srv.URL, srv.URL).
+		Build()
+
+	project, err := c.GetProject(context.Background(), "TouchBistro", "my-service")
+	if err == nil {
+		t.Fatal("GetProject returned nil error; want non-nil for invalid JSON")
+	}
+	if project != nil {
+		t.Errorf("GetProject returned non-nil project on error; want nil")
+	}
+	if !strings.Contains(err.Error(), "decoding GetProject response") {
+		t.Errorf("error message %q does not mention decoding failure", err.Error())
+	}
+}
+
 func TestClient_GetProject_VerifiesRequestPathAndAuth(t *testing.T) {
 	var gotPath, gotToken string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -123,4 +147,3 @@ func TestClient_GetProject_VerifiesRequestPathAndAuth(t *testing.T) {
 		t.Errorf("Circle-Token = %q; want %q", gotToken, "my-secret-token")
 	}
 }
-
