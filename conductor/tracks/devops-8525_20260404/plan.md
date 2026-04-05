@@ -56,7 +56,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ---
 
-## Phase 2: Project Endpoints
+## Phase 2: Project Endpoints [checkpoint: d4b1560]
 
 **Goal:** Implement `GetProject`, `GetProjectInsights`, `FollowProject`, and `UnfollowProject`.
 
@@ -95,7 +95,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - Successful unfollow -- returns response struct, verifies POST method and path.
     - HTTP error response -- returns descriptive error.
 
-- [ ] **Task 2.5: Verification** -- Phase 2
+- [x] **Task 2.5: Verification** -- Phase 2 [d4b1560]
   - Run `go test -cover ./circleci/...` and verify >90% coverage.
   - Run `go vet ./circleci/...`.
   - Review all error paths have descriptive messages. [checkpoint marker]
