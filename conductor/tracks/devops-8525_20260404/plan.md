@@ -118,7 +118,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
     - HTTP error response -- returns descriptive error.
     - Verify request path and auth header.
 
-- [ ] **Task 3.2: Implement ListWorkflows**
+- [x] **Task 3.2: Implement ListWorkflows** [0cd223c]
   - Add `ListWorkflows(ctx context.Context, pipelineID string) (*ListWorkflowsResponse, error)` method on `*Client`.
   - Calls `GET {v2BaseURL}/pipeline/{pipelineID}/workflow`.
   - Decodes response JSON into `*ListWorkflowsResponse`.
