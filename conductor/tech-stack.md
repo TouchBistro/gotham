@@ -28,6 +28,7 @@
 gotham/
 ├── http/          # Auth policy, JWT, principals, roles, middleware, gin & net/http handlers
 ├── cache/         # Cache interface + memory, Redis, nil implementations + serde helpers
+├── circleci/      # CircleCI API client (v1.1 and v2) — project, pipeline, workflow, and insights operations
 ├── util/          # JWT and general utility helpers
 ├── sql/
 │   └── qb/        # Query builder: automated CRUD SQL generation for PostgreSQL (uses pq.Array for batch ops)
