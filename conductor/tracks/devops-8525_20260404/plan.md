@@ -151,7 +151,7 @@ All phases follow TDD (Red-Green-Refactor). Tests use `net/http/httptest` to moc
 
 ### Tasks
 
-- [ ] **Task 4.1: Full test suite and coverage report**
+- [x] **Task 4.1: Full test suite and coverage report** [7eb2149]
   - Run `go test -cover -coverprofile=coverage/circleci.out ./circleci/...`.
   - Verify overall package coverage >90%.
   - Run `go vet ./circleci/...` and `gofmt -l circleci/`.
