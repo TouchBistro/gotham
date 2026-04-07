@@ -11,7 +11,7 @@ import (
 func TestClient_ListWorkflows_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"items": [
 				{
 					"id": "wf-1",
@@ -81,7 +81,7 @@ func TestClient_ListWorkflows_Success(t *testing.T) {
 func TestClient_ListWorkflows_EmptyResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"items": [], "next_page_token": ""}`))
+		_, _ = w.Write([]byte(`{"items": [], "next_page_token": ""}`))
 	}))
 	defer srv.Close()
 
@@ -106,7 +106,7 @@ func TestClient_ListWorkflows_EmptyResponse(t *testing.T) {
 func TestClient_ListWorkflows_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"message":"Pipeline not found"}`))
+		_, _ = w.Write([]byte(`{"message":"Pipeline not found"}`))
 	}))
 	defer srv.Close()
 
@@ -138,7 +138,7 @@ func TestClient_ListWorkflows_VerifiesRequestPath(t *testing.T) {
 		gotPath = r.URL.Path
 		gotMethod = r.Method
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"items": [], "next_page_token": ""}`))
+		_, _ = w.Write([]byte(`{"items": [], "next_page_token": ""}`))
 	}))
 	defer srv.Close()
 
@@ -164,7 +164,7 @@ func TestClient_ListWorkflows_VerifiesRequestPath(t *testing.T) {
 func TestClient_CancelWorkflow_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"message":"Accepted."}`))
+		_, _ = w.Write([]byte(`{"message":"Accepted."}`))
 	}))
 	defer srv.Close()
 
@@ -182,7 +182,7 @@ func TestClient_CancelWorkflow_Success(t *testing.T) {
 func TestClient_CancelWorkflow_NotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"message":"Workflow not found"}`))
+		_, _ = w.Write([]byte(`{"message":"Workflow not found"}`))
 	}))
 	defer srv.Close()
 
@@ -211,7 +211,7 @@ func TestClient_CancelWorkflow_VerifiesRequestMethodAndPath(t *testing.T) {
 		gotPath = r.URL.Path
 		gotMethod = r.Method
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 

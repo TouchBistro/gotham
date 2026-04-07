@@ -70,7 +70,7 @@ func TestClient_doRequest_SetsCircleTokenHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotToken = r.Header.Get("Circle-Token")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"ok":true}`))
+		_, _ = w.Write([]byte(`{"ok":true}`))
 	}))
 	defer srv.Close()
 
@@ -94,7 +94,7 @@ func TestClient_doRequest_SetsAcceptHeader(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotAccept = r.Header.Get("Accept")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 
@@ -116,7 +116,7 @@ func TestClient_doRequest_SetsAcceptHeader(t *testing.T) {
 func TestClient_doRequest_ReturnsBodyOnSuccess(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"result":"ok"}`))
+		_, _ = w.Write([]byte(`{"result":"ok"}`))
 	}))
 	defer srv.Close()
 
@@ -150,7 +150,7 @@ func TestClient_doRequest_ErrorOnNon2xx(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(tt.statusCode)
-				w.Write([]byte(tt.body))
+				_, _ = w.Write([]byte(tt.body))
 			}))
 			defer srv.Close()
 
@@ -204,7 +204,7 @@ func TestClient_doRequest_SendsRequestBody(t *testing.T) {
 		b, _ := io.ReadAll(r.Body)
 		gotBody = string(b)
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{}`))
+		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 

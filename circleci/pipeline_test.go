@@ -11,7 +11,7 @@ import (
 func TestClient_ListPipelines_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"items": [
 				{"id": "pipe-1", "state": "created", "number": 42, "created_at": "2026-01-01T00:00:00Z"},
 				{"id": "pipe-2", "state": "errored", "number": 43, "created_at": "2026-01-02T00:00:00Z"}
@@ -54,7 +54,7 @@ func TestClient_ListPipelines_Success(t *testing.T) {
 func TestClient_ListPipelines_EmptyResponse(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"items": [], "next_page_token": ""}`))
+		_, _ = w.Write([]byte(`{"items": [], "next_page_token": ""}`))
 	}))
 	defer srv.Close()
 
@@ -79,7 +79,7 @@ func TestClient_ListPipelines_EmptyResponse(t *testing.T) {
 func TestClient_ListPipelines_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"message":"Internal Server Error"}`))
+		_, _ = w.Write([]byte(`{"message":"Internal Server Error"}`))
 	}))
 	defer srv.Close()
 
@@ -112,7 +112,7 @@ func TestClient_ListPipelines_VerifiesRequestPathAndAuth(t *testing.T) {
 		gotToken = r.Header.Get("Circle-Token")
 		gotMethod = r.Method
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"items": [], "next_page_token": ""}`))
+		_, _ = w.Write([]byte(`{"items": [], "next_page_token": ""}`))
 	}))
 	defer srv.Close()
 

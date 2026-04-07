@@ -11,7 +11,7 @@ import (
 func TestClient_GetProject_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"slug": "gh/TouchBistro/my-service",
 			"name": "my-service",
 			"id": "proj-123",
@@ -69,7 +69,7 @@ func TestClient_GetProject_Success(t *testing.T) {
 func TestClient_GetProject_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
-		w.Write([]byte(`{"message":"Project not found"}`))
+		_, _ = w.Write([]byte(`{"message":"Project not found"}`))
 	}))
 	defer srv.Close()
 
@@ -98,7 +98,7 @@ func TestClient_GetProject_HTTPError(t *testing.T) {
 func TestClient_GetProject_InvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`not valid json`))
+		_, _ = w.Write([]byte(`not valid json`))
 	}))
 	defer srv.Close()
 
@@ -125,7 +125,7 @@ func TestClient_GetProject_VerifiesRequestPathAndAuth(t *testing.T) {
 		gotPath = r.URL.Path
 		gotToken = r.Header.Get("Circle-Token")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"slug":"gh/owner/repo","name":"repo","id":"1"}`))
+		_, _ = w.Write([]byte(`{"slug":"gh/owner/repo","name":"repo","id":"1"}`))
 	}))
 	defer srv.Close()
 

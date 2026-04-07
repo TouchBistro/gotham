@@ -11,7 +11,7 @@ import (
 func TestClient_GetProjectInsights_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{
+		_, _ = w.Write([]byte(`{
 			"items": [
 				{
 					"name": "build-and-test",
@@ -109,7 +109,7 @@ func TestClient_GetProjectInsights_Success(t *testing.T) {
 func TestClient_GetProjectInsights_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte(`{"message":"Internal server error"}`))
+		_, _ = w.Write([]byte(`{"message":"Internal server error"}`))
 	}))
 	defer srv.Close()
 
@@ -138,7 +138,7 @@ func TestClient_GetProjectInsights_HTTPError(t *testing.T) {
 func TestClient_GetProjectInsights_InvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`not valid json`))
+		_, _ = w.Write([]byte(`not valid json`))
 	}))
 	defer srv.Close()
 
@@ -165,7 +165,7 @@ func TestClient_GetProjectInsights_VerifiesRequestPathAndAuth(t *testing.T) {
 		gotPath = r.URL.Path
 		gotToken = r.Header.Get("Circle-Token")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"items":[],"next_page_token":""}`))
+		_, _ = w.Write([]byte(`{"items":[],"next_page_token":""}`))
 	}))
 	defer srv.Close()
 

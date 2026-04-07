@@ -15,7 +15,7 @@ func TestClient_FollowProject_Success(t *testing.T) {
 		gotPath = r.URL.Path
 		gotToken = r.Header.Get("Circle-Token")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"followed": true}`))
+		_, _ = w.Write([]byte(`{"followed": true}`))
 	}))
 	defer srv.Close()
 
@@ -50,7 +50,7 @@ func TestClient_FollowProject_Success(t *testing.T) {
 func TestClient_FollowProject_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
-		w.Write([]byte(`{"message":"Unauthorized"}`))
+		_, _ = w.Write([]byte(`{"message":"Unauthorized"}`))
 	}))
 	defer srv.Close()
 
@@ -79,7 +79,7 @@ func TestClient_FollowProject_HTTPError(t *testing.T) {
 func TestClient_FollowProject_InvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`not valid json`))
+		_, _ = w.Write([]byte(`not valid json`))
 	}))
 	defer srv.Close()
 
@@ -107,7 +107,7 @@ func TestClient_UnfollowProject_Success(t *testing.T) {
 		gotPath = r.URL.Path
 		gotToken = r.Header.Get("Circle-Token")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`{"followed": false}`))
+		_, _ = w.Write([]byte(`{"followed": false}`))
 	}))
 	defer srv.Close()
 
@@ -142,7 +142,7 @@ func TestClient_UnfollowProject_Success(t *testing.T) {
 func TestClient_UnfollowProject_HTTPError(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusForbidden)
-		w.Write([]byte(`{"message":"Forbidden"}`))
+		_, _ = w.Write([]byte(`{"message":"Forbidden"}`))
 	}))
 	defer srv.Close()
 
@@ -171,7 +171,7 @@ func TestClient_UnfollowProject_HTTPError(t *testing.T) {
 func TestClient_UnfollowProject_InvalidJSON(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(`not valid json`))
+		_, _ = w.Write([]byte(`not valid json`))
 	}))
 	defer srv.Close()
 
