@@ -28,7 +28,7 @@ func TestClient_ListWorkflows_Success(t *testing.T) {
 					"name": "deploy",
 					"status": "running",
 					"created_at": "2026-01-02T00:00:00Z",
-					"stopped_at": "",
+					"stopped_at": null,
 					"pipeline_id": "pipe-1",
 					"pipeline_number": 42,
 					"project_slug": "gh/TouchBistro/my-service"
@@ -39,10 +39,13 @@ func TestClient_ListWorkflows_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListWorkflows(context.Background(), "pipe-1")
 	if err != nil {
@@ -58,8 +61,8 @@ func TestClient_ListWorkflows_Success(t *testing.T) {
 	if resp.Items[0].Name != "build-and-test" {
 		t.Errorf("Items[0].Name = %q; want %q", resp.Items[0].Name, "build-and-test")
 	}
-	if resp.Items[0].Status != "success" {
-		t.Errorf("Items[0].Status = %q; want %q", resp.Items[0].Status, "success")
+	if resp.Items[0].Status != WorkflowStatusSuccess {
+		t.Errorf("Items[0].Status = %q; want %q", resp.Items[0].Status, WorkflowStatusSuccess)
 	}
 	if resp.Items[0].PipelineID != "pipe-1" {
 		t.Errorf("Items[0].PipelineID = %q; want %q", resp.Items[0].PipelineID, "pipe-1")
@@ -67,11 +70,17 @@ func TestClient_ListWorkflows_Success(t *testing.T) {
 	if resp.Items[0].PipelineNumber != 42 {
 		t.Errorf("Items[0].PipelineNumber = %d; want 42", resp.Items[0].PipelineNumber)
 	}
+	if resp.Items[0].StoppedAt == nil {
+		t.Error("Items[0].StoppedAt is nil; want non-nil for completed workflow")
+	}
 	if resp.Items[1].ID != "wf-2" {
 		t.Errorf("Items[1].ID = %q; want %q", resp.Items[1].ID, "wf-2")
 	}
-	if resp.Items[1].Status != "running" {
-		t.Errorf("Items[1].Status = %q; want %q", resp.Items[1].Status, "running")
+	if resp.Items[1].Status != WorkflowStatusRunning {
+		t.Errorf("Items[1].Status = %q; want %q", resp.Items[1].Status, WorkflowStatusRunning)
+	}
+	if resp.Items[1].StoppedAt != nil {
+		t.Errorf("Items[1].StoppedAt = %v; want nil for running workflow", resp.Items[1].StoppedAt)
 	}
 	if resp.NextPageToken != "token-xyz" {
 		t.Errorf("NextPageToken = %q; want %q", resp.NextPageToken, "token-xyz")
@@ -85,10 +94,13 @@ func TestClient_ListWorkflows_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListWorkflows(context.Background(), "pipe-1")
 	if err != nil {
@@ -110,10 +122,13 @@ func TestClient_ListWorkflows_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListWorkflows(context.Background(), "nonexistent-pipe")
 	if err == nil {
@@ -142,12 +157,15 @@ func TestClient_ListWorkflows_VerifiesRequestPath(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.ListWorkflows(context.Background(), "pipe-abc-123")
+	_, err = c.ListWorkflows(context.Background(), "pipe-abc-123")
 	if err != nil {
 		t.Fatalf("ListWorkflows returned unexpected error: %v", err)
 	}
@@ -163,17 +181,20 @@ func TestClient_ListWorkflows_VerifiesRequestPath(t *testing.T) {
 
 func TestClient_CancelWorkflow_Success(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte(`{"message":"Accepted."}`))
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	err := c.CancelWorkflow(context.Background(), "wf-abc-123")
+	err = c.CancelWorkflow(context.Background(), "wf-abc-123")
 	if err != nil {
 		t.Fatalf("CancelWorkflow returned unexpected error: %v", err)
 	}
@@ -186,12 +207,15 @@ func TestClient_CancelWorkflow_NotFound(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	err := c.CancelWorkflow(context.Background(), "nonexistent-wf")
+	err = c.CancelWorkflow(context.Background(), "nonexistent-wf")
 	if err == nil {
 		t.Fatal("CancelWorkflow returned nil error; want non-nil for 404 response")
 	}
@@ -210,17 +234,20 @@ func TestClient_CancelWorkflow_VerifiesRequestMethodAndPath(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gotPath = r.URL.Path
 		gotMethod = r.Method
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusAccepted)
 		_, _ = w.Write([]byte(`{}`))
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	err := c.CancelWorkflow(context.Background(), "wf-xyz-789")
+	err = c.CancelWorkflow(context.Background(), "wf-xyz-789")
 	if err != nil {
 		t.Fatalf("CancelWorkflow returned unexpected error: %v", err)
 	}

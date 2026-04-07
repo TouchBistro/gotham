@@ -21,10 +21,13 @@ func TestClient_ListPipelines_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListPipelines(context.Background(), "TouchBistro", "my-service")
 	if err != nil {
@@ -37,8 +40,8 @@ func TestClient_ListPipelines_Success(t *testing.T) {
 	if resp.Items[0].ID != "pipe-1" {
 		t.Errorf("Items[0].ID = %q; want %q", resp.Items[0].ID, "pipe-1")
 	}
-	if resp.Items[0].State != "created" {
-		t.Errorf("Items[0].State = %q; want %q", resp.Items[0].State, "created")
+	if resp.Items[0].State != PipelineStateCreated {
+		t.Errorf("Items[0].State = %q; want %q", resp.Items[0].State, PipelineStateCreated)
 	}
 	if resp.Items[0].Number != 42 {
 		t.Errorf("Items[0].Number = %d; want 42", resp.Items[0].Number)
@@ -58,10 +61,13 @@ func TestClient_ListPipelines_EmptyResponse(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListPipelines(context.Background(), "TouchBistro", "my-service")
 	if err != nil {
@@ -83,10 +89,13 @@ func TestClient_ListPipelines_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.ListPipelines(context.Background(), "TouchBistro", "my-service")
 	if err == nil {
@@ -116,12 +125,15 @@ func TestClient_ListPipelines_VerifiesRequestPathAndAuth(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("my-secret-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.ListPipelines(context.Background(), "owner", "repo")
+	_, err = c.ListPipelines(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("ListPipelines returned unexpected error: %v", err)
 	}

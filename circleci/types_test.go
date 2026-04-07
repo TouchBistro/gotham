@@ -3,6 +3,7 @@ package circleci
 import (
 	"encoding/json"
 	"testing"
+	"time"
 )
 
 // sampleProjectJSON is a representative CircleCI v2 GET /project/{slug} response.
@@ -191,11 +192,10 @@ func TestListPipelinesResponse_Unmarshal(t *testing.T) {
 		want any
 	}{
 		{"Items[0].ID", r.Items[0].ID, "pipeline-001"},
-		{"Items[0].State", r.Items[0].State, "created"},
+		{"Items[0].State", r.Items[0].State, PipelineStateCreated},
 		{"Items[0].Number", r.Items[0].Number, 42},
-		{"Items[0].CreatedAt", r.Items[0].CreatedAt, "2025-03-15T10:00:00Z"},
 		{"Items[1].ID", r.Items[1].ID, "pipeline-002"},
-		{"Items[1].State", r.Items[1].State, "errored"},
+		{"Items[1].State", r.Items[1].State, PipelineStateErrored},
 		{"Items[1].Number", r.Items[1].Number, 41},
 		{"NextPageToken", r.NextPageToken, "page-token-xyz"},
 	}
@@ -206,6 +206,11 @@ func TestListPipelinesResponse_Unmarshal(t *testing.T) {
 				t.Errorf("%s = %v; want %v", tt.name, tt.got, tt.want)
 			}
 		})
+	}
+
+	wantCreatedAt := time.Date(2025, 3, 15, 10, 0, 0, 0, time.UTC)
+	if !r.Items[0].CreatedAt.Equal(wantCreatedAt) {
+		t.Errorf("Items[0].CreatedAt = %v; want %v", r.Items[0].CreatedAt, wantCreatedAt)
 	}
 }
 
@@ -248,9 +253,7 @@ func TestListWorkflowsResponse_Unmarshal(t *testing.T) {
 	}{
 		{"ID", w.ID, "wf-001"},
 		{"Name", w.Name, "build-and-test"},
-		{"Status", w.Status, "success"},
-		{"CreatedAt", w.CreatedAt, "2025-03-15T10:01:00Z"},
-		{"StoppedAt", w.StoppedAt, "2025-03-15T10:05:00Z"},
+		{"Status", w.Status, WorkflowStatusSuccess},
 		{"PipelineID", w.PipelineID, "pipeline-001"},
 		{"ProjectSlug", w.ProjectSlug, "gh/TouchBistro/my-service"},
 	}
@@ -265,5 +268,18 @@ func TestListWorkflowsResponse_Unmarshal(t *testing.T) {
 
 	if w.PipelineNumber != 42 {
 		t.Errorf("PipelineNumber = %d; want 42", w.PipelineNumber)
+	}
+
+	wantCreatedAt := time.Date(2025, 3, 15, 10, 1, 0, 0, time.UTC)
+	if !w.CreatedAt.Equal(wantCreatedAt) {
+		t.Errorf("CreatedAt = %v; want %v", w.CreatedAt, wantCreatedAt)
+	}
+
+	wantStoppedAt := time.Date(2025, 3, 15, 10, 5, 0, 0, time.UTC)
+	if w.StoppedAt == nil {
+		t.Fatal("StoppedAt is nil; want non-nil")
+	}
+	if !w.StoppedAt.Equal(wantStoppedAt) {
+		t.Errorf("StoppedAt = %v; want %v", w.StoppedAt, wantStoppedAt)
 	}
 }

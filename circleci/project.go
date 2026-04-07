@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // GetProject retrieves project information for the given GitHub owner and
 // repository from the CircleCI v2 API.
 func (c *Client) GetProject(ctx context.Context, owner, repo string) (*Project, error) {
-	url := fmt.Sprintf("%s/project/gh/%s/%s", c.v2BaseURL, owner, repo)
+	rawURL := fmt.Sprintf("%s/project/gh/%s/%s", c.v2BaseURL, url.PathEscape(owner), url.PathEscape(repo))
 
-	body, err := c.doRequest(ctx, http.MethodGet, url, nil)
+	body, err := c.doRequest(ctx, http.MethodGet, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}

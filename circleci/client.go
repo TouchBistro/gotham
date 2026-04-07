@@ -59,8 +59,12 @@ func (b *ClientBuilder) WithBaseURLs(v1, v2 string) *ClientBuilder {
 
 // Build creates a Client from the builder configuration. Fields not explicitly
 // set are populated with sensible defaults: CircleCI cloud URLs and a 30-second
-// timeout HTTP client.
-func (b *ClientBuilder) Build() *Client {
+// timeout HTTP client. It returns an error if no API token was provided.
+func (b *ClientBuilder) Build() (*Client, error) {
+	if b.token == "" {
+		return nil, fmt.Errorf("circleci: API token must not be empty")
+	}
+
 	c := &Client{
 		token:      b.token,
 		v1BaseURL:  b.v1BaseURL,
@@ -78,7 +82,7 @@ func (b *ClientBuilder) Build() *Client {
 		c.httpClient = &http.Client{Timeout: defaultTimeout}
 	}
 
-	return c
+	return c, nil
 }
 
 // doRequest executes an HTTP request with the given method, URL, and optional

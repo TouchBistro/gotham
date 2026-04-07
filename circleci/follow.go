@@ -5,14 +5,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 )
 
 // FollowProject follows the given GitHub project on CircleCI for the
 // authenticated user. It calls the v1.1 follow endpoint.
 func (c *Client) FollowProject(ctx context.Context, owner, repo string) (*FollowProjectResponse, error) {
-	url := fmt.Sprintf("%s/project/github/%s/%s/follow", c.v1BaseURL, owner, repo)
+	rawURL := fmt.Sprintf("%s/project/github/%s/%s/follow", c.v1BaseURL, url.PathEscape(owner), url.PathEscape(repo))
 
-	body, err := c.doRequest(ctx, http.MethodPost, url, nil)
+	body, err := c.doRequest(ctx, http.MethodPost, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -28,9 +29,9 @@ func (c *Client) FollowProject(ctx context.Context, owner, repo string) (*Follow
 // UnfollowProject unfollows the given GitHub project on CircleCI for the
 // authenticated user. It calls the v1.1 unfollow endpoint.
 func (c *Client) UnfollowProject(ctx context.Context, owner, repo string) (*UnfollowProjectResponse, error) {
-	url := fmt.Sprintf("%s/project/github/%s/%s/unfollow", c.v1BaseURL, owner, repo)
+	rawURL := fmt.Sprintf("%s/project/github/%s/%s/unfollow", c.v1BaseURL, url.PathEscape(owner), url.PathEscape(repo))
 
-	body, err := c.doRequest(ctx, http.MethodPost, url, nil)
+	body, err := c.doRequest(ctx, http.MethodPost, rawURL, nil)
 	if err != nil {
 		return nil, err
 	}

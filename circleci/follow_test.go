@@ -19,10 +19,13 @@ func TestClient_FollowProject_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.FollowProject(context.Background(), "TouchBistro", "my-service")
 	if err != nil {
@@ -54,10 +57,13 @@ func TestClient_FollowProject_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("bad-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.FollowProject(context.Background(), "TouchBistro", "my-service")
 	if err == nil {
@@ -83,10 +89,13 @@ func TestClient_FollowProject_InvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.FollowProject(context.Background(), "TouchBistro", "my-service")
 	if err == nil {
@@ -111,10 +120,13 @@ func TestClient_UnfollowProject_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.UnfollowProject(context.Background(), "TouchBistro", "my-service")
 	if err != nil {
@@ -146,10 +158,13 @@ func TestClient_UnfollowProject_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("bad-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.UnfollowProject(context.Background(), "TouchBistro", "my-service")
 	if err == nil {
@@ -175,10 +190,13 @@ func TestClient_UnfollowProject_InvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	resp, err := c.UnfollowProject(context.Background(), "TouchBistro", "my-service")
 	if err == nil {

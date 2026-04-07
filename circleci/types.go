@@ -1,5 +1,27 @@
 package circleci
 
+import "time"
+
+// Pipeline state constants as returned by the CircleCI v2 API.
+const (
+	PipelineStateCreated  = "created"
+	PipelineStateErrored  = "errored"
+	PipelineStatePending  = "pending"
+)
+
+// Workflow status constants as returned by the CircleCI v2 API.
+const (
+	WorkflowStatusSuccess     = "success"
+	WorkflowStatusFailed      = "failed"
+	WorkflowStatusRunning     = "running"
+	WorkflowStatusCanceled    = "canceled"
+	WorkflowStatusFailing     = "failing"
+	WorkflowStatusOnHold      = "on_hold"
+	WorkflowStatusUnauthorized = "unauthorized"
+	WorkflowStatusErrored     = "error"
+	WorkflowStatusNotRun      = "not_run"
+)
+
 // VCSInfo contains version control system information for a CircleCI project.
 type VCSInfo struct {
 	// VCSURL is the URL of the repository (e.g. "https://github.com/owner/repo").
@@ -102,8 +124,8 @@ type Pipeline struct {
 	State string `json:"state"`
 	// Number is the pipeline number within the project.
 	Number int `json:"number"`
-	// CreatedAt is the RFC3339 timestamp when the pipeline was created.
-	CreatedAt string `json:"created_at"`
+	// CreatedAt is the timestamp when the pipeline was created.
+	CreatedAt time.Time `json:"created_at"`
 }
 
 // ListPipelinesResponse represents the paginated response from the CircleCI v2
@@ -124,10 +146,10 @@ type Workflow struct {
 	Name string `json:"name"`
 	// Status is the current workflow status (e.g. "success", "failed", "running").
 	Status string `json:"status"`
-	// CreatedAt is the RFC3339 timestamp when the workflow was created.
-	CreatedAt string `json:"created_at"`
-	// StoppedAt is the RFC3339 timestamp when the workflow stopped, or empty if still running.
-	StoppedAt string `json:"stopped_at"`
+	// CreatedAt is the timestamp when the workflow was created.
+	CreatedAt time.Time `json:"created_at"`
+	// StoppedAt is the timestamp when the workflow stopped, or nil if still running.
+	StoppedAt *time.Time `json:"stopped_at"`
 	// PipelineID is the identifier of the pipeline this workflow belongs to.
 	PipelineID string `json:"pipeline_id"`
 	// PipelineNumber is the number of the pipeline this workflow belongs to.

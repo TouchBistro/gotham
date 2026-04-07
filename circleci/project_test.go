@@ -27,10 +27,13 @@ func TestClient_GetProject_Success(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	project, err := c.GetProject(context.Background(), "TouchBistro", "my-service")
 	if err != nil {
@@ -73,10 +76,13 @@ func TestClient_GetProject_HTTPError(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	project, err := c.GetProject(context.Background(), "TouchBistro", "nonexistent")
 	if err == nil {
@@ -102,10 +108,13 @@ func TestClient_GetProject_InvalidJSON(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	project, err := c.GetProject(context.Background(), "TouchBistro", "my-service")
 	if err == nil {
@@ -129,12 +138,15 @@ func TestClient_GetProject_VerifiesRequestPathAndAuth(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("my-secret-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.GetProject(context.Background(), "owner", "repo")
+	_, err = c.GetProject(context.Background(), "owner", "repo")
 	if err != nil {
 		t.Fatalf("GetProject returned unexpected error: %v", err)
 	}

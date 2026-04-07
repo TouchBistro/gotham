@@ -11,9 +11,12 @@ import (
 )
 
 func TestNewClientBuilder_DefaultToken(t *testing.T) {
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("test-token-123").
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	if c.token != "test-token-123" {
 		t.Errorf("token = %q; want %q", c.token, "test-token-123")
@@ -21,9 +24,12 @@ func TestNewClientBuilder_DefaultToken(t *testing.T) {
 }
 
 func TestNewClientBuilder_Defaults(t *testing.T) {
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	if c.v1BaseURL != "https://circleci.com/api/v1.1" {
 		t.Errorf("v1BaseURL = %q; want %q", c.v1BaseURL, "https://circleci.com/api/v1.1")
@@ -41,10 +47,13 @@ func TestNewClientBuilder_Defaults(t *testing.T) {
 
 func TestNewClientBuilder_CustomHTTPClient(t *testing.T) {
 	custom := &http.Client{Timeout: 60 * time.Second}
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithHTTPClient(custom).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	if c.httpClient != custom {
 		t.Error("httpClient is not the custom client provided to WithHTTPClient")
@@ -52,16 +61,29 @@ func TestNewClientBuilder_CustomHTTPClient(t *testing.T) {
 }
 
 func TestNewClientBuilder_CustomBaseURLs(t *testing.T) {
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithBaseURLs("http://v1.local", "http://v2.local").
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	if c.v1BaseURL != "http://v1.local" {
 		t.Errorf("v1BaseURL = %q; want %q", c.v1BaseURL, "http://v1.local")
 	}
 	if c.v2BaseURL != "http://v2.local" {
 		t.Errorf("v2BaseURL = %q; want %q", c.v2BaseURL, "http://v2.local")
+	}
+}
+
+func TestNewClientBuilder_EmptyTokenError(t *testing.T) {
+	_, err := NewClientBuilder().Build()
+	if err == nil {
+		t.Fatal("Build returned nil error; want non-nil for empty token")
+	}
+	if !strings.Contains(err.Error(), "token") {
+		t.Errorf("error message %q does not mention token", err.Error())
 	}
 }
 
@@ -74,12 +96,15 @@ func TestClient_doRequest_SetsCircleTokenHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("secret-token").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
+	_, err = c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
 	if err != nil {
 		t.Fatalf("doRequest returned unexpected error: %v", err)
 	}
@@ -98,12 +123,15 @@ func TestClient_doRequest_SetsAcceptHeader(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
+	_, err = c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
 	if err != nil {
 		t.Fatalf("doRequest returned unexpected error: %v", err)
 	}
@@ -120,10 +148,13 @@ func TestClient_doRequest_ReturnsBodyOnSuccess(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	body, err := c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
 	if err != nil {
@@ -154,23 +185,22 @@ func TestClient_doRequest_ErrorOnNon2xx(t *testing.T) {
 			}))
 			defer srv.Close()
 
-			c := NewClientBuilder().
+			c, err := NewClientBuilder().
 				WithToken("tok").
 				WithBaseURLs(srv.URL, srv.URL).
 				Build()
+			if err != nil {
+				t.Fatalf("Build returned unexpected error: %v", err)
+			}
 
-			_, err := c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
+			_, err = c.doRequest(context.Background(), http.MethodGet, srv.URL+"/test", nil)
 			if err == nil {
 				t.Fatal("doRequest returned nil error; want non-nil for non-2xx status")
 			}
 
 			errMsg := err.Error()
-			if !strings.Contains(errMsg, string(rune('0'+tt.statusCode/100))) {
-				// Check that the status code appears in the error message
-				if !strings.Contains(errMsg, http.StatusText(tt.statusCode)) &&
-					!strings.Contains(errMsg, strings.TrimSpace(tt.body[:min(len(tt.body), 50)])) {
-					t.Errorf("error message %q does not contain status info or body excerpt", errMsg)
-				}
+			if !strings.Contains(errMsg, strings.TrimSpace(tt.body[:min(len(tt.body), 50)])) {
+				t.Errorf("error message %q does not contain body excerpt", errMsg)
 			}
 		})
 	}
@@ -184,15 +214,18 @@ func TestClient_doRequest_PropagatesContextCancellation(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel() // Cancel immediately
 
-	_, err := c.doRequest(ctx, http.MethodGet, srv.URL+"/test", nil)
+	_, err = c.doRequest(ctx, http.MethodGet, srv.URL+"/test", nil)
 	if err == nil {
 		t.Fatal("doRequest returned nil error; want context cancellation error")
 	}
@@ -208,12 +241,15 @@ func TestClient_doRequest_SendsRequestBody(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	c := NewClientBuilder().
+	c, err := NewClientBuilder().
 		WithToken("tok").
 		WithBaseURLs(srv.URL, srv.URL).
 		Build()
+	if err != nil {
+		t.Fatalf("Build returned unexpected error: %v", err)
+	}
 
-	_, err := c.doRequest(context.Background(), http.MethodPost, srv.URL+"/test", strings.NewReader(`{"key":"val"}`))
+	_, err = c.doRequest(context.Background(), http.MethodPost, srv.URL+"/test", strings.NewReader(`{"key":"val"}`))
 	if err != nil {
 		t.Fatalf("doRequest returned unexpected error: %v", err)
 	}
