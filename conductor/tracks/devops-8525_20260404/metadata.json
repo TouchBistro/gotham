@@ -1,0 +1,9 @@
+{
+  "id": "devops-8525_20260404",
+  "description": "gotham: add circleci client",
+  "type": "feature",
+  "jira_ticket": "DEVOPS-8525",
+  "branch": "feat/devops-8525",
+  "created_at": "2026-04-04T00:00:00Z",
+  "status": "complete"
+}
