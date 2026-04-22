@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TouchBistro/gotham/cache"
+	"github.com/TouchBistro/gotham/http/auth"
 	"github.com/gin-gonic/gin"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,19 +15,19 @@ import (
 // from further processing with an HTTP 401 Unauthorized status code
 func AllowAdminOnlyGinHandler() gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
 
-		var pr Principal
+		var pr auth.Principal
 		if v, ok := c.Get(ContextKeyPrincipal); !ok {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
-		} else if pr, ok = v.(Principal); !ok {
+		} else if pr, ok = v.(auth.Principal); !ok {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		}
 
-		reqUserIsAdmin := pr.IsAdmin || pr.IsSuperAdmin
-		if !reqUserIsAdmin {
-			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make as it is not an administrator user", pr.Alias))
+		if !pr.IsAdmin(ctx) && !pr.IsSuperAdmin(ctx) {
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make as it is not an administrator user", pr.Identifier(ctx)))
 			return
 		}
 	}
@@ -35,23 +35,24 @@ func AllowAdminOnlyGinHandler() gin.HandlerFunc {
 
 // AllowAdminOrAliasGinHandler returns a gin handler that checks if the user alias
 // found in the http request path segement tagged "pathParmName" is either the same
-// as request context principal `alias` or the request context principal is an Admin/
-// Super Admin; if not the request is aborted from further processing with an HTTP 401
-// Unauthorized status code
+// as request context principal identifier or the request context principal is an
+// Admin/Super Admin; if not the request is aborted from further processing with an
+// HTTP 401 Unauthorized status code
 func AllowAdminOrAliasGinHandler(pathParmName string) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		ctx := c.Request.Context()
 
-		var pr Principal
+		var pr auth.Principal
 		if v, ok := c.Get(ContextKeyPrincipal); !ok {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
-		} else if pr, ok = v.(Principal); !ok {
+		} else if pr, ok = v.(auth.Principal); !ok {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 			return
 		}
 
-		userFromAuth := pr.Alias
-		reqUserIsAdmin := pr.IsAdmin || pr.IsSuperAdmin
+		userFromAuth := pr.Identifier(ctx)
+		reqUserIsAdmin := pr.IsAdmin(ctx) || pr.IsSuperAdmin(ctx)
 		userFromRequest := c.Param(pathParmName)
 
 		if !reqUserIsAdmin && userFromAuth != userFromRequest {
@@ -64,13 +65,13 @@ func AllowAdminOrAliasGinHandler(pathParmName string) gin.HandlerFunc {
 // AwsalbAuthorizeGinHandler returns an array of gin hanlders as defind by the supplied
 // auth policy. The pre & post actions are converted to a handler fn, that run before & after the
 // main policy handler. The policy items are used by the main hanlder to match the incoming request
-// against the claims & policy statements in order of definitiob to decide if the request must be
-// allowed, or aborted.
-// The
-func AwsalbAuthorizeGinHandler(pol AuthPolicy, loader PrincipalLoader) []gin.HandlerFunc {
+// against the claims & policy statements in order of definition to decide if the request must be
+// allowed, or aborted. The subHeader parameter represents the http request header that holds
+// the value for the sub claim, that is used to lookup a loader.
+func AwsalbAuthorizeGinHandler(pol auth.Config, subHeader string, loader auth.PrincipalLoader) []gin.HandlerFunc {
 	funcs := make([]gin.HandlerFunc, 0)
 	funcs = append(funcs, actionProcessingGinHandler(pol.PreActions)...)
-	funcs = append(funcs, awsalbAuthGinHandler(pol, loader))
+	funcs = append(funcs, awsalbAuthGinHandler(pol, subHeader, loader))
 	funcs = append(funcs, actionProcessingGinHandler(pol.PostActions)...)
 	return funcs
 }
@@ -78,103 +79,67 @@ func AwsalbAuthorizeGinHandler(pol AuthPolicy, loader PrincipalLoader) []gin.Han
 // helper function
 
 // actionProcessingGinHandler creates gin middleware functions for the supplied
-// policy actions list. 1 handler per defined action is returns
-func actionProcessingGinHandler(actions []PolicyAction) []gin.HandlerFunc {
-	funcs := make([]gin.HandlerFunc, 0)
+// policy actions list. 1 handler per defined action is returned.
+func actionProcessingGinHandler(actions []auth.Action) []gin.HandlerFunc {
+	funcs := make([]gin.HandlerFunc, 0, len(actions))
 	for _, action := range actions {
-		funcs = append(funcs, action.toGinHandler())
+		funcs = append(funcs, func(c *gin.Context) {
+			_ = action.Apply(c.Request)
+		})
 	}
 	return funcs
 }
 
-// GetJwtAuthMiddleware returns a gin middleware that uses the supplied auth policy
-// & the JWT-encoded oidc user claims from the supplied http request header & decides
-// if the request must be processed further or aborted
-func awsalbAuthGinHandler(ap AuthPolicy, loader PrincipalLoader) gin.HandlerFunc {
+// awsalbAuthGinHandler returns a minimal gin middleware that performs basic
+// principal-loading auth followed by a policy match: retrieve context, read
+// the "sub" request header, use the supplied PrincipalLoader to fetch the
+// principal, verify the principal is not expired, then match the request
+// against pol.AuthrPolicies. On any failure (load error, expired principal,
+// match error, non-Allow effect) the request is aborted with HTTP 401.
+// On success the principal is stored on the gin context and the chain
+// proceeds.
+func awsalbAuthGinHandler(pol auth.Config, subHeader string, loader auth.PrincipalLoader) gin.HandlerFunc {
 	return func(c *gin.Context) {
-
 		log.Debugf("processing auth for %v %v", c.Request.Method, c.Request.URL.Path)
 
 		ctx := c.Request.Context()
 
-		var err error
-
-		var sub string
-		if sub, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.SubClaimHeader, 0); err != nil {
+		sub, err := httpRequestHeaderValue(c.Request, subHeader, 0)
+		if err != nil {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no sub claim value found from header")
 			return
 		}
 
-		// fetch cached principal
-		var pr *Principal
-		prefix := "principal"
-		cache, err := cache.Initialize()
+		out, err := loader.FetchPrincipal(ctx, auth.FetchPrincipalInput{
+			Id:           sub,
+			Request:      *c.Request,
+			PolicyConfig: pol,
+		})
 		if err != nil {
-			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "error initialzing cache")
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("error loading principal: %v", err))
+			return
+		}
+		pr := out.Principal
+
+		exp := pr.Expiry(ctx)
+		if !exp.IsZero() && exp.Before(time.Now()) {
+			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "principal has expired")
 			return
 		}
 
-		cloader := CachePrincipalLoader{prefix, cache}
-		if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
-
-			var oidcDataHeaderVal string
-			if oidcDataHeaderVal, err = httpRequestHeaderValue(c.Request, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
-				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "no id token value found from header")
-				return
-			}
-
-			jloader := JwtClaimsPrincipalLoader{
-				config: ap.Config,
-				jwt:    oidcDataHeaderVal,
-			}
-			if pr, err = jloader.FetchPrincipal(ctx, sub); err != nil {
-				abortRespondAndLogErrorGin(c, http.StatusUnauthorized, "error loading principal from cliams in JWT")
-				return
-			}
-
-			// if login claim isn't there, we need to fill/sync it up from the supplied principal loader
-			// this is suppose to fetch a Principal from a system of record like a DB or some other application
-			// specific store
-			if pr.Login == "" {
-				var prFromDb *Principal
-				if prFromDb, err = loader.FetchPrincipal(ctx, sub); err != nil {
-					// if prFromDb, err = loadPrincipalFromDb(ctx, ap.Config, sub); err != nil {
-					abortRespondAndLogErrorGin(c, http.StatusUnauthorized, fmt.Sprintf("principal JWT token didn't contain enough claims, but error fetching principal auth info from database/n%v", err.Error()))
-					return
-				}
-
-				// here we fill out roles from the gruops that are policy def specific
-				prFromDb.Roles, prFromDb.IsSuperAdmin, prFromDb.IsAdmin = rolesFromGroups(ap.Config, prFromDb.Groups)
-
-				// merge the principal from cliams with the principal from storage
-				pr.Merge(*prFromDb)                           // merge with the principal obj from database
-				pr.Expiry = time.Now().Add(119 * time.Second) // force 2m expiry after merge to eff ignore setting expiry from the database record
-			}
-
-			// put raw token in the principal obj context
-			pr.RawToken = oidcDataHeaderVal
-
-			// before caching, we force the expiry in principal to 2 min
-			if err = cloader.Persist(ctx, *pr); err != nil {
-				log.Warnf("error caching principal for external id %v", sub)
-			}
-		}
-
-		pol, err := ap.AuthrPolicies.Match(*pr, *c.Request)
+		matched, err := pol.AuthrPolicies.Match(ctx, pr, *c.Request)
 		if err != nil {
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, err.Error())
 			return
 		}
-
-		if pol.Effect != PolicyEffectAllow {
-			msg := fmt.Sprintf("access to %v %v to %v denied by auth policy", c.Request.Method, c.Request.URL, pr.Login)
+		if matched.Effect != auth.EffectAllow {
+			msg := fmt.Sprintf("access to %v %v to %v denied by auth policy", c.Request.Method, c.Request.URL, pr.Identifier(ctx))
 			abortRespondAndLogErrorGin(c, http.StatusUnauthorized, msg)
 			return
 		}
 
-		// set principal to context, all set go to next handler...
-		c.Set(ContextKeyPrincipal, *pr)  // set pr for later use
-		c.Set(ContextKeyAlias, pr.Alias) // set alias for each fetch
+		c.Set(ContextKeyPrincipal, pr)
+		c.Set(ContextKeyAlias, pr.Identifier(ctx))
 	}
 }
 
