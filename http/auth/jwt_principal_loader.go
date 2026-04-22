@@ -36,10 +36,10 @@ type JwtPrincipalLoader struct {
 	subClaimName    string
 	expiryClaimName string
 
-	// validateJwtSignature: not yet supported.
-	validateJwtSignature bool
-	jwks                 []string
-	jwksUri              string
+	// Reserved for future JWT signature validation (not yet supported).
+	validateJwtSignature bool     //nolint:unused
+	jwks                 []string //nolint:unused
+	jwksUri              string   //nolint:unused
 }
 
 // JwtPrincipalLoaderBuilder builds a JwtPrincipalLoader.
