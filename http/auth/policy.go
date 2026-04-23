@@ -19,15 +19,30 @@ func userMember(id string) string {
 	return fmt.Sprintf("user(%s)", id)
 }
 
-// Config is the top-level auth configuration. It bundles role configuration,
-// pre/post actions and the authorization policy list.
-type Config struct {
+// RolesConfig groups the role-related subtree of the auth configuration:
+// admin role set, super-admin role set, and role definitions (each role name
+// mapped to the set of external groups that confer it).
+type RolesConfig struct {
 	AdminRoles      ds.Set            `json:"admins"`
 	SuperAdminRoles ds.Set            `json:"superAdmins"`
 	Definitions     map[string]ds.Set `json:"def"`
-	PreActions      []Action          `json:"preActions"`
-	AuthrPolicies   Policies          `json:"authrPolicy"`
-	PostActions     []Action          `json:"postActions"`
+}
+
+// ConfigBody is the nested "config" section of the on-disk auth policy. It
+// exists to keep role-related fields grouped under config.roles.* on the
+// wire, matching the pre-migration schema. JWT configuration that previously
+// lived on this body has moved to the JwtPrincipalLoader itself.
+type ConfigBody struct {
+	Roles RolesConfig `json:"roles"`
+}
+
+// Config is the top-level auth configuration. It bundles role configuration,
+// pre/post actions and the authorization policy list.
+type Config struct {
+	Body          ConfigBody `json:"config"`
+	PreActions    []Action   `json:"preActions"`
+	AuthrPolicies Policies   `json:"authrPolicy"`
+	PostActions   []Action   `json:"postActions"`
 }
 
 // LoadConfigFromFile reads an auth Config from the supplied file path. If the
@@ -52,10 +67,9 @@ func LoadConfigFromFile(path string) (*Config, error) {
 // defaultConfig returns the hardcoded default Config.
 func defaultConfig() *Config {
 	return &Config{
-		AdminRoles:      nil,
-		SuperAdminRoles: nil,
-		PreActions:      nil,
-		PostActions:     nil,
+		Body:        ConfigBody{Roles: RolesConfig{}},
+		PreActions:  nil,
+		PostActions: nil,
 		AuthrPolicies: []Item{
 			{
 				Priority:   0,
@@ -81,8 +95,8 @@ func defaultConfig() *Config {
 // Principal by this Config, and reports whether the resolved role set confers
 // super-admin and/or admin privileges.
 //
-// A role (as keyed in c.Definitions) is granted when its member set matches
-// the principal in any of the following ways:
+// A role (as keyed in c.Body.Roles.Definitions) is granted when its member
+// set matches the principal in any of the following ways:
 //   - Any of the role's member groups matches one of the principal's groups
 //     (sourced from p.Groups(ctx)).
 //   - The role's member set contains the Wildcard sentinel ("*"), which
@@ -92,13 +106,13 @@ func defaultConfig() *Config {
 //     specific principal regardless of group membership.
 //
 // A resolved role triggers the corresponding return flag when it also appears
-// in c.AdminRoles or c.SuperAdminRoles.
+// in c.Body.Roles.AdminRoles or c.Body.Roles.SuperAdminRoles.
 //
 // Returns:
 //   - roles: sorted slice of resolved role names (nil when the principal has
 //     a nil groups slice and an empty id — nothing can match).
-//   - isSuperAdmin: true if any resolved role is in c.SuperAdminRoles.
-//   - isAdmin: true if any resolved role is in c.AdminRoles.
+//   - isSuperAdmin: true if any resolved role is in the super-admin set.
+//   - isAdmin: true if any resolved role is in the admin set.
 func (c Config) RolesForPrincipal(ctx context.Context, p Principal) (roles []string, isSuperAdmin bool, isAdmin bool) {
 	groups := p.Groups(ctx)
 	id := p.Identifier(ctx)
@@ -107,10 +121,11 @@ func (c Config) RolesForPrincipal(ctx context.Context, p Principal) (roles []str
 		return nil, false, false
 	}
 
+	roleCfg := c.Body.Roles
 	userTok := userMember(id)
 
 	resolved := ds.Set{}
-	for roleName, members := range c.Definitions {
+	for roleName, members := range roleCfg.Definitions {
 		matched := containsWithWildcard(members, groups...)
 		if !matched && id != "" {
 			matched = members.Contains(userTok)
@@ -119,10 +134,10 @@ func (c Config) RolesForPrincipal(ctx context.Context, p Principal) (roles []str
 			continue
 		}
 		resolved.Insert(roleName)
-		if _, ok := c.AdminRoles[roleName]; ok {
+		if _, ok := roleCfg.AdminRoles[roleName]; ok {
 			isAdmin = true
 		}
-		if _, ok := c.SuperAdminRoles[roleName]; ok {
+		if _, ok := roleCfg.SuperAdminRoles[roleName]; ok {
 			isSuperAdmin = true
 		}
 	}

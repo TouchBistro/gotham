@@ -11,8 +11,9 @@
 //   - PrincipalLoader — produces a Principal for an incoming request. Loaders
 //     take a FetchPrincipalInput (Id, Request, PolicyConfig) and return a
 //     FetchPrincipalOutput.
-//   - Config — the authorization policy: role definitions, admin/super-admin
-//     role sets, pre/post Actions, and an ordered Policies list.
+//   - Config — the authorization policy: a nested Body.Roles subtree
+//     (role definitions, admin/super-admin role sets) plus pre/post Actions
+//     and an ordered Policies list.
 //
 // Consumers assemble a Config, pick a PrincipalLoader, and hand both to the
 // middleware constructors in the parent http package.
@@ -64,13 +65,16 @@
 //
 // # Config and policy matching
 //
-// Config bundles role definitions, admin/super-admin role sets, pre/post
-// Actions, and an ordered Policies list. Load one from disk via
-// LoadConfigFromFile (falls back to a safe default on error).
+// Config bundles a nested Body.Roles (RolesConfig: AdminRoles,
+// SuperAdminRoles, Definitions), pre/post Actions, and an ordered Policies
+// list. The nested Body preserves the on-disk "config.roles.*" layout of
+// the pre-migration policy file. Load one from disk via LoadConfigFromFile
+// (falls back to a safe default on error).
 //
 // Config.RolesForPrincipal(ctx, p) resolves the set of roles a principal is
 // entitled to, and reports admin/super-admin status. Matching sources:
-//   - Any of the principal's groups appears in a role's member set.
+//   - Any of the principal's groups appears in a role's member set
+//     (c.Body.Roles.Definitions).
 //   - The role's member set contains the Wildcard sentinel "*".
 //   - The role's member set contains the per-user token "user(<id>)",
 //     where <id> is the principal's Identifier.
