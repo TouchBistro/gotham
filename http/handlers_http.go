@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/TouchBistro/gotham/cache"
+	"github.com/TouchBistro/gotham/http/auth"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -15,79 +15,70 @@ import (
 func AllowAdminOnlyHttpMiddleware() Middleware {
 	return MiddlewareFunc(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 
-			var ok bool
-			var pr Principal
-
-			_pr, err := getValue(r.Context(), ContextKeyPrincipal)
-
+			_pr, err := getValue(ctx, ContextKeyPrincipal)
 			if err != nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, err.Error())
 				return
 			}
-
 			if _pr == nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 				return
 			}
-			if pr, ok = _pr.(Principal); !ok {
+			pr, ok := _pr.(auth.Principal)
+			if !ok {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 				return
 			}
 
-			reqUserIsAdmin := pr.IsAdmin || pr.IsSuperAdmin
-			if !reqUserIsAdmin {
-				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make this request as it is not an administrator user", pr.Alias))
+			if !pr.IsAdmin(ctx) && !pr.IsSuperAdmin(ctx) {
+				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make this request as it is not an administrator user", pr.Identifier(ctx)))
 				return
 			}
 
-			// go to the next handler
 			next.ServeHTTP(w, r)
 		})
 	})
 }
 
-// AllowAdminOrAliasGinHandler returns a net/http middleware that checks if the user alias
-// found in the http request path segement tagged "pathParmName" is either the same
-// as request context principal `alias` or the request context principal is an Admin/
-// Super Admin; if not the request is aborted from further processing with an HTTP 401
-// Unauthorized status code
+// AllowAdminOrAliasHttpMiddleware returns a net/http middleware that checks if the
+// user identifier found in the http request path segment tagged "pathParmName" is
+// either the same as the request context principal's identifier, or the request
+// context principal is an Admin / Super Admin; if not the request is aborted from
+// further processing with an HTTP 401 Unauthorized status code.
 //
-// when matching /path/to/req/{id}, the value of "id" path parameter is matched to the principal
-// alias
+// when matching /path/to/req/{id}, the value of "id" path parameter is matched to
+// the principal identifier.
 func AllowAdminOrAliasHttpMiddleware(pathParmName string) Middleware {
 	return MiddlewareFunc(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
 
-			var ok bool
-			var pr Principal
-
-			_pr, err := getValue(r.Context(), ContextKeyPrincipal)
-
+			_pr, err := getValue(ctx, ContextKeyPrincipal)
 			if err != nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, err.Error())
 				return
 			}
-
 			if _pr == nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 				return
 			}
-			if pr, ok = _pr.(Principal); !ok {
+			pr, ok := _pr.(auth.Principal)
+			if !ok {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "couldn't retrieve auth context from this request")
 				return
 			}
 
-			userFromAuth := pr.Alias
-			reqUserIsAdmin := pr.IsAdmin || pr.IsSuperAdmin
-			userFromRequest := r.PathValue(pathParmName) // /path/to/resource/{x}
+			userFromAuth := pr.Identifier(ctx)
+			reqUserIsAdmin := pr.IsAdmin(ctx) || pr.IsSuperAdmin(ctx)
+			userFromRequest := r.PathValue(pathParmName)
 
 			if !reqUserIsAdmin && userFromAuth != userFromRequest {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, fmt.Sprintf("%q not authorized to make a request on behalf of %q", userFromAuth, userFromRequest))
 				return
 			}
 
-			// go to the next handler
 			next.ServeHTTP(w, r)
 		})
 	})
@@ -99,125 +90,88 @@ func AllowAdminOrAliasHttpMiddleware(pathParmName string) Middleware {
 // against the claims & policy statements in order of definitiob to decide if the request must be
 // allowed, or aborted.
 // The
-func AwsalbAuthorizeHttpMiddlewares(pol AuthPolicy, loader PrincipalLoader) []Middleware {
+func AwsalbAuthorizeHttpMiddlewares(pol auth.Config, loader auth.PrincipalLoader) []Middleware {
 	middlewares := make([]Middleware, 0)
 	middlewares = append(middlewares, actionProcessingHttpMiddlewares(pol.PreActions)...)
 	middlewares = append(middlewares, awsalbAuthHttpMiddleware(pol, loader))
-	middlewares = append(middlewares, actionProcessingHttpMiddlewares(pol.PreActions)...)
+	middlewares = append(middlewares, actionProcessingHttpMiddlewares(pol.PostActions)...)
 	return middlewares
 }
 
 // helper function
 
 // actionProcessingHttpMiddlewares creates net/http middleware functions for the supplied
-// policy actions list. 1 handler per defined action is returns
-func actionProcessingHttpMiddlewares(actions []PolicyAction) []Middleware {
-	funcs := make([]Middleware, 0)
+// policy actions list. 1 middleware per defined action is returned.
+func actionProcessingHttpMiddlewares(actions []auth.Action) []Middleware {
+	funcs := make([]Middleware, 0, len(actions))
 	for _, action := range actions {
-		funcs = append(funcs, action.toHttpMiddlewareFunc())
+		funcs = append(funcs, MiddlewareFunc(func(next http.Handler) http.Handler {
+			return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				_ = action.Apply(r)
+				next.ServeHTTP(w, r)
+			})
+		}))
 	}
 	return funcs
 }
 
-// awsalbAuthHttpMiddleware returns an net/http middleware that uses the supplied auth policy
-// & the JWT-encoded oidc user claims from the supplied http request header & decides
-// if the request must be processed further or aborted
-func awsalbAuthHttpMiddleware(ap AuthPolicy, loader PrincipalLoader) Middleware {
+// awsalbAuthHttpMiddleware returns a minimal net/http middleware that performs
+// basic principal-loading auth followed by a policy match: ensure the request
+// context has a value map, read the "sub" request header, use the supplied
+// PrincipalLoader to fetch the principal, verify the principal is not expired,
+// then match the request against pol.AuthrPolicies. On any failure (load
+// error, expired principal, match error, non-Allow effect) the request is
+// aborted with HTTP 401. On success the principal + alias are stored on the
+// request context and the chain proceeds.
+func awsalbAuthHttpMiddleware(pol auth.Config, loader auth.PrincipalLoader) Middleware {
 	return MiddlewareFunc(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 			log.Debugf("processing auth for %v %v", r.Method, r.URL.Path)
 
-			// ensure the request is upgraded with a value map
 			r = upgradeRequestContext(r)
 			ctx := r.Context()
 
-			var err error
-
-			var sub string
-			if sub, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.SubClaimHeader, 0); err != nil {
+			sub, err := httpRequestHeaderValue(r, "sub", 0)
+			if err != nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "no sub claim value found from header")
 				return
 			}
 
-			// fetch cached principal
-			var pr *Principal
-			prefix := "principal"
-			cache, err := cache.Initialize()
+			out, err := loader.FetchPrincipal(ctx, auth.FetchPrincipalInput{
+				Id:           sub,
+				Request:      *r,
+				PolicyConfig: pol,
+			})
 			if err != nil {
-				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "error initialzing cache")
+				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, fmt.Sprintf("error loading principal: %v", err))
+				return
+			}
+			pr := out.Principal
+
+			exp := pr.Expiry(ctx)
+			if !exp.IsZero() && exp.Before(time.Now()) {
+				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "principal has expired")
 				return
 			}
 
-			cloader := CachePrincipalLoader{prefix, cache}
-			if pr, err = cloader.FetchPrincipal(ctx, sub); err != nil {
-
-				var oidcDataHeaderVal string
-				if oidcDataHeaderVal, err = httpRequestHeaderValue(r, ap.Config.JwtConfig.IdTokenHeader, 0); err != nil {
-					abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "no id token value found from header")
-					return
-				}
-
-				jloader := JwtClaimsPrincipalLoader{
-					config: ap.Config,
-					jwt:    oidcDataHeaderVal,
-				}
-				if pr, err = jloader.FetchPrincipal(ctx, sub); err != nil {
-					abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, "error loading principal from cliams in JWT")
-					return
-				}
-
-				// if login claim isn't there, we need to fill/sync it up from the supplied principal loader
-				// this is suppose to fetch a Principal from a system of record like a DB or some other application
-				// specific store
-				if pr.Login == "" {
-					// var prFromDb *Principal
-					prFromDb := pr // init with the item from cache
-					if loader != nil {
-						if prFromDb, err = loader.FetchPrincipal(ctx, sub); err != nil {
-							// if prFromDb, err = loadPrincipalFromDb(ctx, ap.Config, sub); err != nil {
-							abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, fmt.Sprintf("principal JWT token didn't contain enough claims, but error fetching principal auth info from database/n%v", err.Error()))
-							return
-						}
-					}
-
-					// here we fill out roles from the gruops that are policy def specific
-					prFromDb.Roles, prFromDb.IsSuperAdmin, prFromDb.IsAdmin = rolesFromGroups(ap.Config, prFromDb.Groups)
-
-					// merge the principal from cliams with the principal from storage
-					pr.Merge(*prFromDb)                           // merge with the principal obj from database
-					pr.Expiry = time.Now().Add(119 * time.Second) // force 2m expiry after merge to eff ignore setting expiry from the database record
-				}
-
-				// put raw token in the principal obj context
-				pr.RawToken = oidcDataHeaderVal
-
-				// before caching, we force the expiry in principal to 2 min
-				if err = cloader.Persist(ctx, *pr); err != nil {
-					log.Warnf("error caching principal for external id %v", sub)
-				}
-			}
-
-			pol, err := ap.AuthrPolicies.Match(*pr, *r)
+			matched, err := pol.AuthrPolicies.Match(ctx, pr, *r)
 			if err != nil {
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, err.Error())
 				return
 			}
-
-			if pol.Effect != PolicyEffectAllow {
-				msg := fmt.Sprintf("access to %v %v to %v denied by auth policy", r.Method, r.URL, pr.Login)
+			if matched.Effect != auth.EffectAllow {
+				msg := fmt.Sprintf("access to %v %v to %v denied by auth policy", r.Method, r.URL, pr.Identifier(ctx))
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, msg)
 				return
 			}
 
-			// set principal to context, all set go to next handler...
-			if err = setValue(ctx, ContextKeyPrincipal, *pr); err != nil {
-				msg := fmt.Sprintf("access to %v %v to %v denied, error saving principal in context due to %v", r.Method, r.URL, pr.Login, err.Error())
+			if err = setValue(ctx, ContextKeyPrincipal, pr); err != nil {
+				msg := fmt.Sprintf("access to %v %v to %v denied, error saving principal in context due to %v", r.Method, r.URL, pr.Identifier(ctx), err.Error())
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, msg)
 				return
 			}
-			if err = setValue(ctx, ContextKeyAlias, pr.Alias); err != nil {
-				msg := fmt.Sprintf("access to %v %v to %v denied, error saving principal in context due to %v", r.Method, r.URL, pr.Login, err.Error())
+			if err = setValue(ctx, ContextKeyAlias, pr.Identifier(ctx)); err != nil {
+				msg := fmt.Sprintf("access to %v %v to %v denied, error saving principal in context due to %v", r.Method, r.URL, pr.Identifier(ctx), err.Error())
 				abortRespondAndLogErrorHttp(w, r, http.StatusUnauthorized, msg)
 				return
 			}

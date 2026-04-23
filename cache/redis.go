@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/TouchBistro/gotham/serialize"
 	redisv9 "github.com/redis/go-redis/v9"
 )
 
@@ -51,8 +52,7 @@ func (r *RedisCache) PutWithTtl(ctx context.Context, key string, val any, expiry
 		bytes = []byte(rval)
 	default:
 		var err error
-		g := GobSerde{}
-		if bytes, err = g.ser(val); err != nil {
+		if bytes, err = (serialize.GobSerde{}).Encode(val); err != nil {
 			return err
 		}
 	}
@@ -86,7 +86,7 @@ func (r *RedisCache) Fetch(ctx context.Context, key string, val any) error {
 			*rval = string(bytes)
 			return nil
 		default:
-			return GobSerde{}.de(bytes, val) //TODO to be improved into a more generic SerDe impl
+			return (serialize.GobSerde{}).Decode(bytes, val) //TODO to be improved into a more generic SerDe impl
 		}
 	}
 }
