@@ -45,6 +45,8 @@ type Policies []Item
 // Match walks the rules in order and returns the first Item whose method,
 // path and subjects all match the supplied request and principal. The
 // principal's Identifier and Roles are consulted via its Principal methods.
+// Rule urls are matched against the request path per pathMatches, which
+// documents the three supported url forms.
 // If no rule matches, a non-nil error is returned.
 func (p Policies) Match(ctx context.Context, pr Principal, req http.Request) (*Item, error) {
 	id := pr.Identifier(ctx)
@@ -88,7 +90,7 @@ func pathMatches(rulePath, reqPath string) bool {
 	if rulePath == AllPaths || strings.EqualFold(rulePath, reqPath) {
 		return true
 	}
-	if prefix, ok := strings.CutSuffix(rulePath, "*"); ok && prefix != "" {
+	if prefix, ok := strings.CutSuffix(rulePath, Wildcard); ok && prefix != "" {
 		return len(reqPath) >= len(prefix) && strings.EqualFold(prefix, reqPath[:len(prefix)])
 	}
 	return false
