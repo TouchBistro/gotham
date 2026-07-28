@@ -29,7 +29,7 @@ behaviour.
 
 ### Tasks
 
-- [ ] **Task 1.1: TDD `pathMatches` helper** (FR-1, FR-2, NFR-3)
+- [x] **Task 1.1: TDD `pathMatches` helper** (FR-1, FR-2, NFR-3) [65ab089]
   - **Red:** create `http/auth/policy_rules_test.go` with a table-driven `TestPathMatches`
     covering:
     - global sentinel: rule `*` vs `/anything`, `/`, `` (empty)
