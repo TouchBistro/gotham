@@ -54,7 +54,7 @@ behaviour.
   - **Refactor:** keep the helper allocation-free (no `ToLower`, no `Split`); confirm `strings` is
     the only import touched.
 
-- [ ] **Task 1.2: Wire `pathMatches` into `Policies.Match`** (FR-2, FR-3)
+- [x] **Task 1.2: Wire `pathMatches` into `Policies.Match`** (FR-2, FR-3) [6a8592a]
   - **Red:** add `TestPolicies_Match` to `http/auth/policy_rules_test.go` driving the real
     `Policies.Match(ctx, principal, req)` path with `BasicPrincipal` + `httptest.NewRequest`:
     - prefix rule `/cr7/reviews/*` + method `GET` + subjects `["*"]` matches
