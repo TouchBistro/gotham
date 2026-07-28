@@ -87,7 +87,7 @@ behaviour.
   - **Green:** no production change expected. If a test fails, fix `pathMatches` / `Match` and
     document the deviation in this plan.
 
-- [ ] **Task 1.4: Verification — Phase 1** [checkpoint marker]
+- [~] **Task 1.4: Verification — Phase 1** [checkpoint marker]
   - Run `go test -cover ./http/auth/...`; confirm >90% statement coverage on
     `http/auth/policy_rules.go`.
   - Run `go test ./...` to confirm no regression elsewhere in the module.
