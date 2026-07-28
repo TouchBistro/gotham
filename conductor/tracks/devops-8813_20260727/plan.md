@@ -21,7 +21,7 @@ exists today).
 
 ---
 
-## Phase 1: Path Matching Helper and `Policies.Match` Integration
+## Phase 1: Path Matching Helper and `Policies.Match` Integration [checkpoint: d176ae5]
 
 **Goal:** `pathMatches` exists, is used by `Policies.Match`, and supports global `*`, exact
 case-insensitive equality, and trailing-`*` prefix — with no change to method, subject, or ordering
@@ -87,7 +87,7 @@ behaviour.
   - **Green:** no production change expected. If a test fails, fix `pathMatches` / `Match` and
     document the deviation in this plan.
 
-- [~] **Task 1.4: Verification — Phase 1** [checkpoint marker]
+- [x] **Task 1.4: Verification — Phase 1** [checkpoint marker] [d176ae5]
   - Run `go test -cover ./http/auth/...`; confirm >90% statement coverage on
     `http/auth/policy_rules.go`.
   - Run `go test ./...` to confirm no regression elsewhere in the module.
