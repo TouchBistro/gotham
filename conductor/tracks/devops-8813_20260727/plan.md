@@ -71,8 +71,8 @@ behaviour.
     `Policies.Match` with `pathMatches(item.HttpPath, req.URL.Path)`. Change nothing else in
     `Match` — same trace/debug logging, same returned `*Item`, same no-match error text.
 
-- [ ] **Task 1.3: First-match-wins ordering and backward-compatibility regression tests**
-      (FR-3, FR-4)
+- [x] **Task 1.3: First-match-wins ordering and backward-compatibility regression tests**
+      (FR-3, FR-4) [ee3bb3c]
   - **Red:** add `TestPolicies_Match_Ordering` and `TestPolicies_Match_BackwardCompatible`:
     - ordering: a `deny` exact-path rule listed before an `allow` prefix rule wins for the exact
       path; the prefix rule wins for sub-paths — asserts the first matching rule in slice order is
