@@ -53,7 +53,7 @@ func (p Policies) Match(ctx context.Context, pr Principal, req http.Request) (*I
 	for _, item := range p {
 		log.Tracef("matching: %v %v %v to %v (%v)", id, req.Method, req.URL.Path, item.Name, item.Priority)
 		if item.HttpMethod == AllMethods || strings.EqualFold(item.HttpMethod, req.Method) {
-			if item.HttpPath == AllPaths || strings.EqualFold(item.HttpPath, req.URL.Path) {
+			if pathMatches(item.HttpPath, req.URL.Path) {
 				if containsSetWithWildcard(item.Subjects, rolesSet) {
 					log.Debugf("auth match found: %v %v %v to %v (%v)", color.Green(id), req.Method, req.URL.Path, color.Green(item.Name), item.Priority)
 					return &item, nil
