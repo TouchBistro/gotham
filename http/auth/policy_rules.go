@@ -73,6 +73,27 @@ func RoleSetFrom(roles ...string) ds.Set {
 	return ds.From(roles...)
 }
 
+// pathMatches reports whether a rule url matches a request path. Three url
+// forms are supported, evaluated in order:
+//
+//  1. the bare "*" sentinel (AllPaths), which matches every path;
+//  2. exact case-insensitive equality with the request path;
+//  3. a url ending in "*", which matches any request path that begins with
+//     the url minus the trailing "*", compared case-insensitively. The
+//     prefix must be non-empty; the empty-prefix case is only reachable as
+//     the bare "*" sentinel handled above.
+//
+// No other wildcard form (mid-path "*", "**", regex, ":param") is supported.
+func pathMatches(rulePath, reqPath string) bool {
+	if rulePath == AllPaths || strings.EqualFold(rulePath, reqPath) {
+		return true
+	}
+	if prefix, ok := strings.CutSuffix(rulePath, "*"); ok && prefix != "" {
+		return len(reqPath) >= len(prefix) && strings.EqualFold(prefix, reqPath[:len(prefix)])
+	}
+	return false
+}
+
 // containsSetWithWildcard reports whether s intersects with other, treating
 // the Wildcard sentinel in s as matching anything.
 func containsSetWithWildcard(s, other ds.Set) bool {
