@@ -45,6 +45,8 @@ type Policies []Item
 // Match walks the rules in order and returns the first Item whose method,
 // path and subjects all match the supplied request and principal. The
 // principal's Identifier and Roles are consulted via its Principal methods.
+// Rule urls are matched against the request path per pathMatches, which
+// documents the three supported url forms.
 // If no rule matches, a non-nil error is returned.
 func (p Policies) Match(ctx context.Context, pr Principal, req http.Request) (*Item, error) {
 	id := pr.Identifier(ctx)
@@ -53,7 +55,7 @@ func (p Policies) Match(ctx context.Context, pr Principal, req http.Request) (*I
 	for _, item := range p {
 		log.Tracef("matching: %v %v %v to %v (%v)", id, req.Method, req.URL.Path, item.Name, item.Priority)
 		if item.HttpMethod == AllMethods || strings.EqualFold(item.HttpMethod, req.Method) {
-			if item.HttpPath == AllPaths || strings.EqualFold(item.HttpPath, req.URL.Path) {
+			if pathMatches(item.HttpPath, req.URL.Path) {
 				if containsSetWithWildcard(item.Subjects, rolesSet) {
 					log.Debugf("auth match found: %v %v %v to %v (%v)", color.Green(id), req.Method, req.URL.Path, color.Green(item.Name), item.Priority)
 					return &item, nil
@@ -71,6 +73,27 @@ func RoleSetFrom(roles ...string) ds.Set {
 		roles = []string{Everyone}
 	}
 	return ds.From(roles...)
+}
+
+// pathMatches reports whether a rule url matches a request path. Three url
+// forms are supported, evaluated in order:
+//
+//  1. the bare "*" sentinel (AllPaths), which matches every path;
+//  2. exact case-insensitive equality with the request path;
+//  3. a url ending in "*", which matches any request path that begins with
+//     the url minus the trailing "*", compared case-insensitively. The
+//     prefix must be non-empty; the empty-prefix case is only reachable as
+//     the bare "*" sentinel handled above.
+//
+// No other wildcard form (mid-path "*", "**", regex, ":param") is supported.
+func pathMatches(rulePath, reqPath string) bool {
+	if rulePath == AllPaths || strings.EqualFold(rulePath, reqPath) {
+		return true
+	}
+	if prefix, ok := strings.CutSuffix(rulePath, Wildcard); ok && prefix != "" {
+		return len(reqPath) >= len(prefix) && strings.EqualFold(prefix, reqPath[:len(prefix)])
+	}
+	return false
 }
 
 // containsSetWithWildcard reports whether s intersects with other, treating

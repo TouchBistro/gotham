@@ -27,3 +27,10 @@ Created: 2026-04-01
 Branch: `feat/devops-8525`
 Type: feature
 Created: 2026-04-04
+
+## [~] Track: gotham: support trailing-* prefix matching in authr policy url paths [devops-8813_20260727]
+
+(Jira: DEVOPS-8813)
+Branch: `feat/devops-8813`
+Type: feature
+Created: 2026-07-27
