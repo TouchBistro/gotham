@@ -136,7 +136,7 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
 
 ---
 
-## Phase 2b: Purge the console-URL capture path (scope change 2026-09-14)
+## Phase 2b: Purge the console-URL capture path (scope change 2026-09-14) [checkpoint: afc10ee]
 
 **Goal:** gotham's `aws/cereport` contains only report generation. No URL parsing, no
 parser-only `Spec` fields, no capture-time wording in docs. Coverage stays ≥ 90%.
@@ -158,7 +158,7 @@ cerep. `ReportID`/`ReportARN`/`ChartStyle` are written by the parser and never r
   - Rewrite `doc.go` (spec JSON example replaces the capture snippet); fix the `LoadSpecs` comment.
   - Verify no reference to `ParseURL`, `ReportID`, `ReportARN`, `ChartStyle` remains.
 
-- [x] **Task 2b.2: Verification — Phase 2b** [checkpoint marker]
+- [x] **Task 2b.2: Verification — Phase 2b** [checkpoint marker] [afc10ee]
   - **Results (2026-09-14):** `go test -count=1 -cover ./aws/cereport/` → **98.9%**; only `addAt` (85.7%) and `WriteCSV` (96.2%) below 100%, same defensive branches as Phase 2.
   - `golangci-lint` 0 issues; `go vet` ok; `gofmt -l` empty; `go build ./...` ok. Package is now 6 files: `doc.go`, `types.go`, `translate.go`, `run.go` + two test files.
   - `tech-stack.md` tree line reads "checked-in Spec → GetCostAndUsage → CSV grid".
