@@ -1,6 +1,8 @@
 package cereport
 
 import (
+	"net/url"
+	"reflect"
 	"testing"
 	"time"
 )
@@ -165,5 +167,164 @@ func TestGetCostAndUsageInput_ExcludeBecomesNot(t *testing.T) {
 	}
 	if len(in.Filter.Not.Dimensions.Values) != 3 {
 		t.Errorf("filter values = %v", in.Filter.Not.Dimensions.Values)
+	}
+}
+
+// fragmentURL builds a console-shaped URL from report-state parameters, so a
+// fixture reads as key/value pairs instead of several KB of escaped JSON.
+// Parameters are merged over a minimal valid report (monthly, unblended,
+// year-to-date), so each test spells out only what it is about.
+func fragmentURL(params map[string]string) string {
+	q := url.Values{
+		"reportName":              {"r"},
+		"costAggregate":           {"unBlendedCost"},
+		"granularity":             {"Monthly"},
+		"historicalRelativeRange": {"YEAR_TO_DATE"},
+		"startDate":               {"2026-01-01"},
+		"endDate":                 {"2026-08-30"},
+	}
+	for k, v := range params {
+		q.Set(k, v)
+	}
+	return "/costmanagement/home?region=us-east-1#/cost-explorer?" + q.Encode()
+}
+
+// TestParseURL_FullURL: scheme and host are irrelevant, only the fragment
+// carries report state.
+func TestParseURL_FullURL(t *testing.T) {
+	spec, err := ParseURL("https://us-east-1.console.aws.amazon.com" + fragmentURL(nil))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	if spec.Name != "r" || spec.Metric != "UnblendedCost" || spec.Granularity != "MONTHLY" {
+		t.Errorf("spec = %+v", spec)
+	}
+	if spec.GroupBy != nil || spec.Filters != nil {
+		t.Errorf("GroupBy/Filters = %v/%v, want none", spec.GroupBy, spec.Filters)
+	}
+	if spec.TimeRange != (TimeRange{Relative: "YEAR_TO_DATE", Start: "2026-01-01", End: "2026-08-30"}) {
+		t.Errorf("TimeRange = %+v", spec.TimeRange)
+	}
+}
+
+// TestParseURL_TagGroupBy pins the console's "TagKeyValue:<key>" encoding for
+// grouping by tag, previously covered only by the ytd_ecs_by_repo_amortized
+// golden report.
+func TestParseURL_TagGroupBy(t *testing.T) {
+	spec, err := ParseURL(fragmentURL(map[string]string{"groupBy": `["TagKeyValue:repo","Service"]`}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	want := []Group{{Type: "TAG", Key: "repo"}, {Type: "DIMENSION", Key: "SERVICE"}}
+	if !reflect.DeepEqual(spec.GroupBy, want) {
+		t.Errorf("GroupBy = %+v, want %+v", spec.GroupBy, want)
+	}
+}
+
+// TestParseURL_TagFilterRow pins the tag filter row shape: the console puts the
+// tag key in growableValue and the tag's values in values. Inverting them
+// yields a filter that matches nothing and reports zero without erroring.
+// Previously covered only by the ytd_venue_ark_by_service_amortized golden
+// report.
+func TestParseURL_TagFilterRow(t *testing.T) {
+	filter := `[
+	  {"dimension":{"id":"TagKey","displayValue":"Tag"},"operator":"INCLUDES",
+	   "values":[{"value":"venue","displayValue":"venue"}],
+	   "growableValue":{"value":"groupid","displayValue":"groupid"}},
+	  {"dimension":{"id":"TagKey","displayValue":"Tag"},"operator":"EXCLUDES",
+	   "values":[{"value":"ark","displayValue":"ark"},{"value":"pos","displayValue":"pos"}],
+	   "growableValue":{"value":"serviceid","displayValue":"serviceid"}},
+	  {"dimension":{"id":"Region","displayValue":"Region"},"operator":"INCLUDES",
+	   "values":[{"value":"us-east-1","displayValue":"US East (N. Virginia)"}]}
+	]`
+	spec, err := ParseURL(fragmentURL(map[string]string{"filter": filter}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	want := []Filter{
+		{Type: "TAG", Key: "groupid", Values: []string{"venue"}},
+		{Type: "TAG", Key: "serviceid", Exclude: true, Values: []string{"ark", "pos"}},
+		{Type: "DIMENSION", Key: "REGION", Values: []string{"us-east-1"}},
+	}
+	if !reflect.DeepEqual(spec.Filters, want) {
+		t.Errorf("Filters = %+v, want %+v", spec.Filters, want)
+	}
+}
+
+// TestParseURL_TrimsName: several reports were saved with a leading space in
+// the console; the name becomes a filename downstream.
+func TestParseURL_TrimsName(t *testing.T) {
+	spec, err := ParseURL(fragmentURL(map[string]string{"reportName": "  ytd_by_service "}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	if spec.Name != "ytd_by_service" {
+		t.Errorf("Name = %q, want trimmed", spec.Name)
+	}
+}
+
+func TestParseURL_EmptyGroupByAndFilter(t *testing.T) {
+	spec, err := ParseURL(fragmentURL(map[string]string{"groupBy": "", "filter": "[]"}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	if spec.GroupBy != nil || spec.Filters != nil {
+		t.Errorf("GroupBy/Filters = %v/%v, want nil (totals-only report)", spec.GroupBy, spec.Filters)
+	}
+}
+
+// TestParseURL_NormalizedUnits: useNormalizedUnits wins over costAggregate,
+// which the console leaves as "undefined" in that case.
+func TestParseURL_NormalizedUnits(t *testing.T) {
+	spec, err := ParseURL(fragmentURL(map[string]string{
+		"useNormalizedUnits": "true", "costAggregate": "undefined",
+	}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	if spec.Metric != "NormalizedUsageAmount" {
+		t.Errorf("Metric = %q, want NormalizedUsageAmount", spec.Metric)
+	}
+}
+
+func TestParseURL_CustomRange(t *testing.T) {
+	spec, err := ParseURL(fragmentURL(map[string]string{
+		"historicalRelativeRange": "CUSTOM", "startDate": "2025-01-01", "endDate": "2025-02-01",
+	}))
+	if err != nil {
+		t.Fatalf("ParseURL: %v", err)
+	}
+	if !spec.TimeRange.IsCustom() || spec.TimeRange.Start != "2025-01-01" || spec.TimeRange.End != "2025-02-01" {
+		t.Errorf("TimeRange = %+v, want a custom 2025-01-01..2025-02-01 window", spec.TimeRange)
+	}
+}
+
+func TestParseURL_RejectsMore(t *testing.T) {
+	tests := []struct {
+		name string
+		url  string
+	}{
+		{"fragment without query", "/costmanagement/home#/cost-explorer"},
+		{"invalid query escape", "/x#/cost-explorer?reportName=%zz"},
+		{"malformed groupBy json", fragmentURL(map[string]string{"groupBy": `["Service"`})},
+		{"malformed filter json", fragmentURL(map[string]string{"filter": `[{`})},
+		{"tag group-by with empty key", fragmentURL(map[string]string{"groupBy": `["TagKeyValue:"]`})},
+		{"tag filter row without growableValue", fragmentURL(map[string]string{
+			"filter": `[{"dimension":{"id":"TagKey"},"operator":"INCLUDES","values":[{"value":"x"}]}]`})},
+		{"filter on unknown dimension", fragmentURL(map[string]string{
+			"filter": `[{"dimension":{"id":"Bogus"},"operator":"INCLUDES","values":[{"value":"x"}]}]`})},
+		{"filter with unknown operator", fragmentURL(map[string]string{
+			"filter": `[{"dimension":{"id":"Service"},"operator":"CONTAINS","values":[{"value":"x"}]}]`})},
+		{"filter with no values", fragmentURL(map[string]string{
+			"filter": `[{"dimension":{"id":"Service"},"operator":"INCLUDES","values":[]}]`})},
+		{"uncategorized only", fragmentURL(map[string]string{"showOnlyUncategorized": "true"})},
+		{"savings plans report", fragmentURL(map[string]string{"reportMode": "SAVINGS_PLANS"})},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if _, err := ParseURL(tt.url); err == nil {
+				t.Fatal("expected an error, got none")
+			}
+		})
 	}
 }
