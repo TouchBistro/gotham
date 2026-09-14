@@ -25,14 +25,15 @@ requires, and the moved files differ from source only in their `package` clause.
 
 ### Tasks
 
-- [ ] **Task 1.1: Add AWS SDK dependencies** (FR-2)
+- [x] **Task 1.1: Add AWS SDK dependencies** (FR-2) [f70565f]
+  - **Note (2026-09-14):** `go mod tidy` pruned the two requires because nothing imported them yet, so this task produced no standalone diff. The `go.mod`/`go.sum` change landed with Task 1.2 in `f70565f`.
   - `go get github.com/aws/aws-sdk-go-v2@v1.45.1 github.com/aws/aws-sdk-go-v2/service/costexplorer@v1.69.1`
   - `go mod tidy` — expect the two modules to drop to `// indirect` until Task 1.2 imports them;
     that is fine, Task 1.2 re-runs tidy.
   - Assert no `replace` directive; assert no `aws-sdk-go-v2/config` anywhere in `go.mod`.
   - Verification: `go build ./...` still green.
 
-- [ ] **Task 1.2: Copy library files, rename package, add doc.go** (FR-1, FR-3)
+- [x] **Task 1.2: Copy library files, rename package, add doc.go** (FR-1, FR-3) [f70565f]
   - **Red:** `cp` `url_test.go` and `run_test.go` from
     `/Users/esiddiqui/Projects/devops/devops-go-tools/cost/savedreport/` into `aws/cereport/`,
     `sed` the `package savedreport` line to `package cereport`. Run
