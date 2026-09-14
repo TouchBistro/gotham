@@ -168,7 +168,7 @@ cerep. `ReportID`/`ReportARN`/`ChartStyle` are written by the parser and never r
 
 ---
 
-## Phase 3: Documentation and Release
+## Phase 3: Documentation and Release [checkpoint: 7e015cd]
 
 **Goal:** the package is documented for consumers, the release bump is staged, the full Makefile
 gate is green, and a PR is open against `master`.
@@ -191,7 +191,7 @@ gate is green, and a PR is open against `master`.
   - Confirm with `git tag --sort=-v:refname | head -1` that `v0.2.0` > current (`v0.1.1`) so
     `tagger.sh` uses the proposed value instead of auto-bumping to `v0.1.2`.
 
-- [x] **Task 3.3: Verification — Phase 3** [checkpoint marker]
+- [x] **Task 3.3: Verification — Phase 3** [checkpoint marker] [7e015cd]
   - **Results (2026-09-14):** `make build` ok; `make lint` → 0 issues; `make test` → every package ok. `aws/cereport` alone: **98.9%**
     (`make test` prints module-wide `-coverpkg=./...` figures, 11.7% for this package, which are not comparable). `make test-ci` module total 68.4% (pre-existing baseline).
   - `gofmt -l .` lists four pre-existing files outside this track (`circleci/types.go`, `sql/qb/{db_mock,entity,query}_test.go`); `aws/cereport` is clean. Left untouched.
