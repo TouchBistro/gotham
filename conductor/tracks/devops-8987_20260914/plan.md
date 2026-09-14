@@ -175,7 +175,7 @@ gate is green, and a PR is open against `master`.
 
 ### Tasks
 
-- [ ] **Task 3.1: Package README and root README line** (FR-3)
+- [x] **Task 3.1: Package README and root README line** (FR-3) [860f40a]
   - `aws/cereport/README.md` following `slack/README.md`: purpose (checked-in Spec → API → CSV),
     install, spec JSON example (fields, relative vs CUSTOM ranges),
     `LoadSpecs`/`Find`, building a client (`config.LoadDefaultConfig` + `costexplorer.NewFromConfig`
@@ -186,7 +186,7 @@ gate is green, and a PR is open against `master`.
   - Root `README.md`: one bullet naming `aws/cereport`.
   - Documentation-only; verified by review and `go vet`.
 
-- [ ] **Task 3.2: Release tag** (FR-5)
+- [x] **Task 3.2: Release tag** (FR-5) [c142b2a]
   - Set `.circleci/tag.dat` to `v0.2.0` (single line, trailing newline).
   - Confirm with `git tag --sort=-v:refname | head -1` that `v0.2.0` > current (`v0.1.1`) so
     `tagger.sh` uses the proposed value instead of auto-bumping to `v0.1.2`.
