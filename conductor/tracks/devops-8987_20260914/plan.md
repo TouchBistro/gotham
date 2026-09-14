@@ -72,7 +72,8 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
 
 ### Tasks
 
-- [ ] **Task 2.1: Loader, lookup, grid, CSV and pagination tests** (FR-4) — `run_test.go`
+- [x] **Task 2.1: Loader, lookup, grid, CSV and pagination tests** (FR-4) — `run_test.go` [2efc886]
+  - **Note:** `fakeCE` gained `tokens` (records each request's NextPageToken) and `err` fields; otherwise the moved tests are untouched.
   - **Red:** add table-driven tests and confirm they fail or are uncovered before assertions are
     tightened (these are tests against existing code, so "Red" here means writing the assertion
     first and watching coverage move):
@@ -92,7 +93,7 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
     - `TestGroupHeader`: no groups → `Total`; two groups → `A / B`.
   - **Green:** no production change expected.
 
-- [ ] **Task 2.2: URL parser tests with synthetic fixtures** (FR-4) — `url_test.go`
+- [x] **Task 2.2: URL parser tests with synthetic fixtures** (FR-4) — `url_test.go` [e553148]
   - **Red:** add a small helper that builds a fragment URL from `url.Values` so fixtures stay
     readable, then:
     - `TestParseURL_TagGroupBy`: `groupBy=["TagKeyValue:repo"]` → one `TAG`/`repo` group
@@ -110,7 +111,7 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
       `showOnlyUncategorized=true`; `reportMode=SAVINGS_PLANS`.
   - **Green:** no production change expected.
 
-- [ ] **Task 2.3: Translation tests** (FR-4) — new `translate_test.go`
+- [x] **Task 2.3: Translation tests** (FR-4) — new `translate_test.go` [5893223]
   - **Red:**
     - `TestExpression`: zero filters → nil; one filter → bare expression (no `And`); two filters →
       `And` with two elements; `TAG` → `Tags`; `COST_CATEGORY` → `CostCategories`; unknown type →
@@ -122,7 +123,11 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
       propagation of `ResolvePeriod` and `Expression` errors.
   - **Green:** no production change expected.
 
-- [ ] **Task 2.4: Verification — Phase 2** [checkpoint marker]
+- [x] **Task 2.4: Verification — Phase 2** [checkpoint marker]
+  - **Results (2026-09-14):** `go test -count=1 -cover ./aws/cereport/` → **99.3%** (target ≥ 90%). Every function at 100% except
+    `addAt` 85.7% (the defensive `for len(row) < len(r.Periods)` growth loop: `Run` already pads rows when a new period appears) and
+    `WriteCSV` 96.2% (write error on the Total row only; header, row and final-flush error paths are covered).
+  - `golangci-lint run ./aws/cereport/...` → 0 issues; `go vet` clean; `gofmt -l` empty.
   - `go test -count=1 -cover ./aws/cereport/` ≥ 90%; record the figure and any function still
     below 80% from `go tool cover -func`.
   - `golangci-lint run ./aws/cereport/...` zero issues (watch `errcheck` on any `f.Close()` in new
