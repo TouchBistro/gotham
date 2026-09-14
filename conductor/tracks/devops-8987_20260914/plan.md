@@ -203,12 +203,15 @@ gate is green, and a PR is open against `master`.
     `.circleci/tag.dat`, `conductor/**` touched.
   - Push branch; confirm CircleCI `build-lint-test` green.
 
-- [ ] **Task 3.4: Open PR** (FR-5)
+- [x] **Task 3.4: Open PR** (FR-5) [ba6406a]
   - `gh pr create --base master` with title
     `feat(aws/cereport): add Cost Explorer saved-report library [DEVOPS-8987]`; body lists the
     file mapping table from the ticket (adjusted to `aws/cereport`), the two new direct requires,
     the coverage figure, the `v0.2.0` bump, and the deviations from the ticket text.
   - Record the PR URL here and on the Jira ticket. Mark `tracks.md` entry `[x]` on merge.
+  - **PR:** https://github.com/TouchBistro/gotham/pull/17 — `feat/devops-8987` → `master`, opened 2026-09-14.
+    Title: `feat(aws/cereport): add Cost Explorer report runner from devops-go-tools cereport [DEVOPS-8987]`.
+  - Jira follow-up comment posted with the scope change and PR link. CircleCI `build-lint-test` result recorded below once available.
 
 ---
 

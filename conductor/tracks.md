@@ -35,7 +35,7 @@ Branch: `feat/devops-8813`
 Type: feature
 Created: 2026-07-27
 
-## [ ] Track: gotham: add aws/cereport — Cost Explorer saved-report library (from devops-go-tools cereport) [devops-8987_20260914]
+## [~] Track: gotham: add aws/cereport — Cost Explorer saved-report library (from devops-go-tools cereport) [devops-8987_20260914]
 
 (Jira: DEVOPS-8987)
 Branch: `feat/devops-8987`
