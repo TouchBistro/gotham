@@ -211,7 +211,8 @@ gate is green, and a PR is open against `master`.
   - Record the PR URL here and on the Jira ticket. Mark `tracks.md` entry `[x]` on merge.
   - **PR:** https://github.com/TouchBistro/gotham/pull/17 — `feat/devops-8987` → `master`, opened 2026-09-14.
     Title: `feat(aws/cereport): add Cost Explorer report runner from devops-go-tools cereport [DEVOPS-8987]`.
-  - Jira follow-up comment posted with the scope change and PR link. CircleCI `build-lint-test` result recorded below once available.
+  - Jira follow-up comment posted with the scope change and PR link.
+  - **CircleCI:** `build-lint-test` passed on `ba6406a` (build 47, workflow `build-test-release`). The `release` job runs only on `master` after merge.
 
 ---
 
