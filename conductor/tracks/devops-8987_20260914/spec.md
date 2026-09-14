@@ -10,9 +10,11 @@
 
 Move the reusable half of `cereport` out of `devops-go-tools`
 (`github.com/TouchBistro/goplayground/cost/savedreport`) into gotham as the new package
-`aws/cereport`. The library turns a Cost Explorer saved-report console URL into a durable `Spec`,
-translates the `Spec` into a `GetCostAndUsage` request, follows every result page into a
-`Result` grid, and writes that grid as CSV.
+`aws/cereport`. The library loads checked-in report definitions (`Spec`), translates a `Spec` into a
+`GetCostAndUsage` request, follows every result page into a `Result` grid, and writes that grid as
+CSV. **Scope change 2026-09-14:** the console-URL → `Spec` capture path (`url.go`, `ParseURL`) is
+*not* part of gotham; it belongs with the report data and its golden test (cerep). gotham holds only
+report generation.
 
 This is **Step 1** of the three-step split described in DEVOPS-8987. Step 2 (new repo `cerep`
 holding the `cer` CLI and the 12 TouchBistro report definitions) and Step 3 (deleting
@@ -43,22 +45,27 @@ pieces of work and are **out of scope** for this track.
 | Package path `aws/costexplorer` | Package path `aws/cereport`, package name `cereport` | Requester preference; keeps the tool's name. |
 | Alias the SDK import as `ce` | SDK import left as `costexplorer`, unaliased | Package is no longer named `costexplorer`, so there is no name clash to disambiguate. Zero source diff beyond the `package` clause. |
 | (implicit) `costexplorer.CostExplorerAPI` | `cereport.CostExplorerAPI`, name unchanged | No stutter with the new package name; honours "no logic changes". |
+| Copy `url.go` + `url_test.go`; `ParseURL` exported from gotham | **Not copied.** `url.go` and the parser tests are excluded; `ParseURL` is not in gotham | Requester decision 2026-09-14: URL parsing is capture-time tooling for the spec dump, unrelated to running reports. It stays with `urls.txt` and the golden test in cerep. |
+| Copy `Spec` verbatim | `ReportID`, `ReportARN`, `ChartStyle` removed from `Spec` | Requester decision 2026-09-14: written by the parser, never read by request building or CSV output. `TimeRange.Start`/`End` stay (read for CUSTOM ranges). |
 
 ## Functional Requirements
 
 ### FR-1: Package `aws/cereport` exposes the existing API unchanged
 
-**Description:** Copy `types.go`, `url.go`, `translate.go`, `run.go`, `url_test.go`, `run_test.go`
-from `cost/savedreport` into `aws/cereport/`. Change only the `package` clause. No logic changes.
+**Description:** Copy `types.go`, `translate.go`, `run.go`, `run_test.go` from `cost/savedreport`
+into `aws/cereport/`. `url.go`/`url_test.go` are not copied (scope change above); the four translate
+tests that lived in `url_test.go` move to `translate_test.go`. Request building and CSV output are
+unchanged.
 
 **Exported surface (must be identical):** `Spec`, `Group`, `Filter`, `TimeRange`,
-`TimeRange.IsCustom`, `ParseURL`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
+`TimeRange.IsCustom`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
 `Spec.GetCostAndUsageInput`, `Spec.Expression`, `LoadSpecs`, `Find`, `Result`, `Result.Total`,
 `Result.GrandTotal`, `Result.SortedKeys`, `Result.WriteCSV`, `CostExplorerAPI`, `Run`.
 
 **Acceptance Criteria:**
-- `diff` of each moved file against its source shows only the `package` line (and, for
-  `types.go`, the removal of the package doc comment that moves to `doc.go`).
+- `translate.go` and `run.go` differ from source only in the `package` line (`run.go` additionally
+  in one `LoadSpecs` comment). `types.go` drops `ReportID`/`ReportARN`/`ChartStyle`, gains the
+  `relativeCustom` constant (formerly in `url.go`), and its comments no longer describe URL capture.
 - `gofmt -l aws/cereport` prints nothing; `go vet ./aws/cereport/...` is clean.
 - The moved `url_test.go` and `run_test.go` pass unmodified.
 
@@ -94,9 +101,9 @@ callers build the client, so `aws-sdk-go-v2/config` is **not** required.
 
 ### FR-4: Test coverage ≥ 90%, fully offline
 
-**Description:** The golden test and its TouchBistro report data leave for `cerep`, so the
-coverage it provided must be replaced with synthetic fixtures. No TouchBistro report definitions
-are committed to gotham.
+**Description:** All tests are offline against the in-package fake. No TouchBistro report
+definitions are committed to gotham. (URL-parser fixtures written earlier in this track were
+removed with `url.go` under the scope change.)
 
 **Acceptance Criteria:**
 - `go test -cover ./aws/cereport/` reports ≥ 90% statement coverage.
@@ -105,10 +112,7 @@ are committed to gotham.
   `Find` (hit / miss), `WriteCSV` (grouped and ungrouped: header, descending-total order,
   trailing `Total` row and column, full-precision amounts), `SortedKeys` tie-break,
   `GrandTotal`, `Run` pagination via `NextPageToken`, `Run` API error propagation,
-  `metricValue` error paths, tag group-by (`TagKeyValue:<key>`), tag filter row via
-  `growableValue`, tag row without `growableValue`, empty tag key, unknown operator, filter
-  with no values, `useNormalizedUnits=true`, malformed fragment / query / JSON, report-name
-  trimming, `Expression` with multiple filters (AND), `TAG` and `COST_CATEGORY` filter types,
+  `metricValue` error paths, `Expression` with multiple filters (AND), `TAG` and `COST_CATEGORY` filter types,
   unknown filter type, custom range without dates, unhandled relative range, `LAST_N_DAYS`.
 
 **Priority:** P0
@@ -171,3 +175,5 @@ are committed to gotham.
 | 2026-09-14 | Keep `CostExplorerAPI` name; leave SDK import unaliased. |
 | 2026-09-14 | Conductor track created and plan posted to Jira; PR to be opened by the implementer at the end of Phase 3. |
 | 2026-09-14 | Golden-test coverage replaced with synthetic URL fixtures rather than copying TouchBistro report data into gotham. |
+| 2026-09-14 | **Scope change:** console-URL parsing (`url.go`, `ParseURL`, parser tests) purged from gotham; only report generation stays. Capture tooling belongs with the report data in cerep. |
+| 2026-09-14 | `Spec` fields `ReportID`, `ReportARN`, `ChartStyle` removed (parser-written, never read). `Name` kept (lookup key, filenames, error messages); `TimeRange.Start`/`End` kept (CUSTOM ranges). |

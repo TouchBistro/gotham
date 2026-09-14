@@ -29,7 +29,7 @@
 ```
 gotham/
 ├── aws/
-│   └── cereport/  # Cost Explorer saved-report library: console URL → Spec → GetCostAndUsage → CSV grid
+│   └── cereport/  # Cost Explorer report runner: checked-in Spec → GetCostAndUsage → CSV grid
 ├── http/          # Auth policy, JWT, principals, roles, middleware, gin & net/http handlers
 ├── cache/         # Cache interface + memory, Redis, nil implementations + serde helpers
 ├── circleci/      # CircleCI API client (v1.1 and v2) — project, pipeline, workflow, and insights operations

@@ -136,6 +136,35 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
 
 ---
 
+## Phase 2b: Purge the console-URL capture path (scope change 2026-09-14)
+
+**Goal:** gotham's `aws/cereport` contains only report generation. No URL parsing, no
+parser-only `Spec` fields, no capture-time wording in docs. Coverage stays ≥ 90%.
+
+**Why:** requester review after Phase 2: `ParseURL` and friends are tooling for the one-time
+spec dump (`urls.txt` → `specs.json`), unrelated to running reports; that belongs with the data in
+cerep. `ReportID`/`ReportARN`/`ChartStyle` are written by the parser and never read.
+
+### Tasks
+
+- [x] **Task 2b.1: Remove `url.go`, parser tests and parser-only fields** (FR-1, FR-4) [9fbc3bd]
+  - `git rm aws/cereport/url.go aws/cereport/url_test.go`.
+  - Move `relativeCustom` into `types.go`; drop `ReportID`, `ReportARN`, `ChartStyle` from `Spec`;
+    reword `Spec`/`Group`/`Filter`/`TimeRange` comments without the console-URL framing.
+  - Move the four translate tests that lived in `url_test.go` (`TestResolvePeriod`,
+    `TestResolvePeriod_ExcludeCurrentDay`, `TestResolvePeriod_Custom…`,
+    `TestGetCostAndUsageInput_ExcludeBecomesNot`) into `translate_test.go`; the last one builds its
+    input from a literal `Spec` instead of `ParseURL`.
+  - Rewrite `doc.go` (spec JSON example replaces the capture snippet); fix the `LoadSpecs` comment.
+  - Verify no reference to `ParseURL`, `ReportID`, `ReportARN`, `ChartStyle` remains.
+
+- [ ] **Task 2b.2: Verification — Phase 2b** [checkpoint marker]
+  - `go test -count=1 -cover ./aws/cereport/` ≥ 90%; `golangci-lint` 0 issues; `go vet`, `gofmt -l`
+    clean; `go build ./...` ok.
+  - `conductor/tech-stack.md` package tree line no longer mentions console URLs.
+
+---
+
 ## Phase 3: Documentation and Release
 
 **Goal:** the package is documented for consumers, the release bump is staged, the full Makefile
@@ -144,13 +173,13 @@ gate is green, and a PR is open against `master`.
 ### Tasks
 
 - [ ] **Task 3.1: Package README and root README line** (FR-3)
-  - `aws/cereport/README.md` following `slack/README.md`: purpose (console URL → Spec → API →
-    CSV; why the URL is the only machine-readable source), install, `ParseURL` example,
+  - `aws/cereport/README.md` following `slack/README.md`: purpose (checked-in Spec → API → CSV),
+    install, spec JSON example (fields, relative vs CUSTOM ranges),
     `LoadSpecs`/`Find`, building a client (`config.LoadDefaultConfig` + `costexplorer.NewFromConfig`
     — caller's responsibility, region `us-east-1`), `Run` + `WriteCSV`, `ExcludeCurrentDay`
     semantics, CSV shape (groups as rows, ISO-dated columns, trailing `Total`), required IAM
-    action `ce:GetCostAndUsage`, limitations (no cost-category group-by, no
-    `showOnlyUntagged`).
+    action `ce:GetCostAndUsage`, testing with a fake `CostExplorerAPI`, and a pointer to cerep for
+    capturing specs from console URLs.
   - Root `README.md`: one bullet naming `aws/cereport`.
   - Documentation-only; verified by review and `go vet`.
 
