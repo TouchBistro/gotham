@@ -65,7 +65,7 @@ requires, and the moved files differ from source only in their `package` clause.
 
 ---
 
-## Phase 2: Coverage to ≥ 90%
+## Phase 2: Coverage to ≥ 90% [checkpoint: 2c81e64]
 
 **Goal:** every path the departing golden test covered is pinned by synthetic fixtures, the
 zero-coverage helpers are exercised, and the package reports ≥ 90% statement coverage offline.
@@ -123,7 +123,7 @@ zero-coverage helpers are exercised, and the package reports ≥ 90% statement c
       propagation of `ResolvePeriod` and `Expression` errors.
   - **Green:** no production change expected.
 
-- [x] **Task 2.4: Verification — Phase 2** [checkpoint marker]
+- [x] **Task 2.4: Verification — Phase 2** [checkpoint marker] [2c81e64]
   - **Results (2026-09-14):** `go test -count=1 -cover ./aws/cereport/` → **99.3%** (target ≥ 90%). Every function at 100% except
     `addAt` 85.7% (the defensive `for len(row) < len(r.Periods)` growth loop: `Run` already pads rows when a new period appears) and
     `WriteCSV` 96.2% (write error on the Total row only; header, row and final-flush error paths are covered).
