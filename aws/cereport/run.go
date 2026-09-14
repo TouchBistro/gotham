@@ -15,8 +15,7 @@ import (
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
 
-// LoadSpecs reads a JSON array of specs, e.g. the file produced when the
-// console urls were converted.
+// LoadSpecs reads a JSON array of specs from path.
 func LoadSpecs(path string) ([]*Spec, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
