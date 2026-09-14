@@ -18,7 +18,7 @@ checkpoint commit per phase. Every `go` / `golangci-lint` invocation in this tra
 
 ---
 
-## Phase 1: Move the Library
+## Phase 1: Move the Library [checkpoint: 9be68bc]
 
 **Goal:** `aws/cereport` compiles, its moved tests pass, `go.mod` carries exactly the two new direct
 requires, and the moved files differ from source only in their `package` clause.
@@ -49,7 +49,7 @@ requires, and the moved files differ from source only in their `package` clause.
     `diff <src>/url.go aws/cereport/url.go` (and the other five) that only the `package` line
     differs (`types.go` additionally loses the doc comment).
 
-- [x] **Task 1.3: Verification — Phase 1** [checkpoint marker]
+- [x] **Task 1.3: Verification — Phase 1** [checkpoint marker] [9be68bc]
   - **Results (2026-09-14):** `gofmt -l aws/cereport` empty; `go vet` clean; `golangci-lint run ./aws/cereport/...` → 0 issues;
     `go build ./...` ok; `go test -count=1 ./...` ok for every package (aws/cereport, circleci, http/auth, shipit, slack, sql/qb, sql/qb/tmp).
   - **go.mod:** direct `+github.com/aws/aws-sdk-go-v2 v1.45.1`, `+github.com/aws/aws-sdk-go-v2/service/costexplorer v1.69.1`;
