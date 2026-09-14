@@ -21,11 +21,15 @@
 | `github.com/TouchBistro/goutils` | Internal TouchBistro Go utilities |
 | `github.com/lib/pq` | PostgreSQL driver — provides `pq.Array` for passing Go slices as PostgreSQL array parameters in batch INSERT, UPDATE, and DELETE operations (used by `sql/qb`) |
 | `golang.org/x/sync` | Structured concurrency with errgroup for bulk operations |
+| `github.com/aws/aws-sdk-go-v2` | AWS SDK v2 core — `aws.String` and shared types (used by `aws/cereport`) |
+| `github.com/aws/aws-sdk-go-v2/service/costexplorer` | Cost Explorer API types and `GetCostAndUsage` client (used by `aws/cereport`; the library takes a `CostExplorerAPI` interface, callers build the client — `aws-sdk-go-v2/config` is deliberately **not** a gotham dependency) |
 
 ## Package Structure
 
 ```
 gotham/
+├── aws/
+│   └── cereport/  # Cost Explorer saved-report library: console URL → Spec → GetCostAndUsage → CSV grid
 ├── http/          # Auth policy, JWT, principals, roles, middleware, gin & net/http handlers
 ├── cache/         # Cache interface + memory, Redis, nil implementations + serde helpers
 ├── circleci/      # CircleCI API client (v1.1 and v2) — project, pipeline, workflow, and insights operations
@@ -37,6 +41,13 @@ gotham/
 ├── go.mod / go.sum
 └── Makefile
 ```
+
+## Change Log
+
+- **2026-09-14 (DEVOPS-8987):** first AWS dependency. Added `aws-sdk-go-v2` core and
+  `service/costexplorer` for the new `aws/cereport` package, moved from `devops-go-tools`.
+  Consumers that do not import `aws/cereport` compile no AWS code (module-graph pruning);
+  only their `go.sum` grows.
 
 ## Testing
 
