@@ -58,8 +58,8 @@ tests that lived in `url_test.go` move to `translate_test.go`. Request building 
 unchanged.
 
 **Exported surface (must be identical):** `Spec`, `Group`, `Filter`, `TimeRange`,
-`TimeRange.IsCustom`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
-`Spec.GetCostAndUsageInput`, `Spec.Expression`, `LoadSpecs`, `Find`, `Result`, `Result.Total`,
+`TimeRange.IsCustom`, `Spec.Validate`, `Metrics`, `Granularities`, `Dimensions`, the `Type*` / `Metric*` / `Granularity*` / `Range*` constants, `RangeLastDays`, `RangeLastMonths`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
+`Spec.GetCostAndUsageInput`, `Spec.Expression`, `Result`, `Result.Total`,
 `Result.GrandTotal`, `Result.SortedKeys`, `Result.WriteCSV`, `CostExplorerAPI`, `Run`.
 
 **Acceptance Criteria:**
@@ -116,6 +116,25 @@ removed with `url.go` under the scope change.)
   unknown filter type, custom range without dates, unhandled relative range, `LAST_N_DAYS`.
 
 **Priority:** P0
+
+### FR-6: `Spec.Validate()` (added 2026-09-14)
+
+**Description:** A spec can be checked against every rule Cost Explorer is known to enforce
+before any request is built. `GetCostAndUsageInput` and `Run` validate first.
+
+**Acceptance Criteria:**
+- Rules: `Name` set; `Metric` in the seven `GetCostAndUsage` metrics; `Granularity` in
+  HOURLY/DAILY/MONTHLY; at most two `GroupBy`; each `Group`/`Filter` has a known `Type` and a
+  `Key`, DIMENSION keys drawn from the SDK's `Dimension` enum; each `Filter` has ≥ 1 value;
+  `Relative` is CUSTOM/empty, YEAR_TO_DATE, MONTH_TO_DATE, LAST_<n>_DAYS or LAST_<n>_MONTHS with
+  n ≥ 1; CUSTOM has `Start`/`End`; any dates are `yyyy-MM-dd` with `Start` < `End`.
+- All problems are reported at once (`errors.Join`), each error names the report.
+- Exported constants for every enumerated value; `Metrics()`, `Granularities()`, `Dimensions()`
+  return sorted lists.
+- `LoadSpecs` and `Find` are removed from gotham; clients decode JSON themselves and call
+  `Validate`.
+
+**Priority:** P1
 
 ### FR-5: Release
 
@@ -177,3 +196,5 @@ removed with `url.go` under the scope change.)
 | 2026-09-14 | Golden-test coverage replaced with synthetic URL fixtures rather than copying TouchBistro report data into gotham. |
 | 2026-09-14 | **Scope change:** console-URL parsing (`url.go`, `ParseURL`, parser tests) purged from gotham; only report generation stays. Capture tooling belongs with the report data in cerep. |
 | 2026-09-14 | `Spec` fields `ReportID`, `ReportARN`, `ChartStyle` removed (parser-written, never read). `Name` kept (lookup key, filenames, error messages); `TimeRange.Start`/`End` kept (CUSTOM ranges). |
+| 2026-09-14 | `LoadSpecs`/`Find` removed from gotham: client config layer (file path, JSON array shape, terminal-formatted error), nothing over `json.Unmarshal`. Moved into the cerep CLI as private helpers. |
+| 2026-09-14 | `Spec.Validate()` added with exported constants; `GetCostAndUsageInput`/`Run` validate first so a bad spec never costs an API request. Dimensions/granularities/types from SDK enums; metrics hand-kept (API spelling differs from the SDK `Metric` enum). |

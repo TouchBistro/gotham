@@ -216,6 +216,54 @@ gate is green, and a PR is open against `master`.
 
 ---
 
+## Phase 4: API refinement after review (2026-09-14)
+
+**Goal:** gotham's `aws/cereport` is a pure report engine with a self-describing, validated
+`Spec`. Spec loading and selection move to the client (cerep).
+
+**Why:** requester review of PR #17: `LoadSpecs`/`Find` are the client's config layer (file
+path, JSON array, terminal-formatted error) and add nothing over `json.Unmarshal`; `Spec` had no
+validation, so bad specs failed late or cost an API request; consumers had to know magic strings.
+
+### Tasks
+
+- [x] **Task 4.1: Remove `LoadSpecs` and `Find`** (FR-1) [daaaf21]
+  - Delete both from `run.go` (with the `os` and `encoding/json` imports) and their tests.
+  - Hand the requester a drop-in snippet for `cerep/cmd/cer/main.go` (`loadSpecs`, `findSpec`).
+
+- [x] **Task 4.2: Constants and `Spec.Validate()`** (FR-6) [0a17e80]
+  - `types.go`: exported `Type*`, `Metric*`, `Granularity*`, `Range*` constants plus
+    `RangeLastDays(n)` / `RangeLastMonths(n)`; `dateLayout`; field comments point at them.
+  - `validate.go`: `Validate()` collects every problem with `errors.Join`; `validateKey`;
+    `TimeRange.validate`. Metrics hand-kept (API takes CamelCase; SDK enum is SCREAMING_SNAKE);
+    granularities, group types and the 35 dimensions come from the SDK enums' `Values()`.
+    Exported `Metrics()`, `Granularities()`, `Dimensions()` for help text.
+  - `translate.go`: `GetCostAndUsageInput` calls `Validate` first; literals replaced by constants.
+  - **Red:** `validate_test.go` — valid specs (5), one test per rule (18), all-problems-at-once,
+    range helpers, value lists, `GetCostAndUsageInput` rejects before building.
+  - **Green:** implementation above.
+
+- [x] **Task 4.3: README and doc.go rewrite** (FR-3) [454ebf2]
+  - README: quick start; Spec field table with constants; four Spec examples (YTD by service,
+    daily by region for one tag, single-number MTD by cost category, fixed window with two
+    group-bys); Validation with sample output and rule list; loading from JSON via
+    `json.Unmarshal`; `Result` field table; five Result examples (CSV, top-N share, single
+    number, tag prefix stripping, period-over-period); time-range table; fake for tests;
+    permissions/cost/limits.
+  - `doc.go`: Spec literal in the usage example; mentions Validate and the constants.
+
+- [x] **Task 4.4: Verification — Phase 4** [checkpoint marker]
+  - **Results (2026-09-14):** `go test -count=1 -cover ./aws/cereport/` → **98.3%**. Below 100%: `addAt` 85.7%, `WriteCSV` 96.2%
+    (as before) and `GetCostAndUsageInput` 81.8% — its `ResolvePeriod`/`Expression` error returns are unreachable now that
+    `Validate` runs first; kept as defensive code. `golangci-lint` 0 issues; `go vet` ok; `gofmt -l` empty; `go build ./...` ok.
+  - Exported surface now: `Spec`, `Group`, `Filter`, `TimeRange`, `Result`, `CostExplorerAPI`, `PeriodOption`, `Run`, `ExcludeCurrentDay`,
+    `Spec.{Validate,ResolvePeriod,GetCostAndUsageInput,Expression}`, `TimeRange.IsCustom`, `Result.{Total,GrandTotal,SortedKeys,WriteCSV}`,
+    `Metrics`, `Granularities`, `Dimensions`, `RangeLastDays`, `RangeLastMonths`, and the `Type*`/`Metric*`/`Granularity*`/`Range*` constants.
+  - `go test -cover ./aws/cereport/` ≥ 90%; lint 0; vet; gofmt; `make build lint test`.
+  - Push to PR #17; CircleCI green; Jira follow-up.
+
+---
+
 ## Risks and Dependencies
 
 | Item | Notes |
