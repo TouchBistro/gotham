@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -241,69 +239,6 @@ func TestMetricValue_UnitOptional(t *testing.T) {
 	amt, unit, err := metricValue(m, "UsageQuantity")
 	if err != nil || amt != 3.5 || unit != "" {
 		t.Errorf("got %v/%q/%v, want 3.5/\"\"/nil", amt, unit, err)
-	}
-}
-
-func TestLoadSpecs(t *testing.T) {
-	dir := t.TempDir()
-	write := func(name, body string) string {
-		t.Helper()
-		p := filepath.Join(dir, name)
-		if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
-			t.Fatal(err)
-		}
-		return p
-	}
-
-	good := write("specs.json", `[
-	  {"name":"a","metric":"UnblendedCost","granularity":"MONTHLY",
-	   "groupBy":[{"type":"DIMENSION","key":"SERVICE"}],
-	   "filters":[{"type":"DIMENSION","key":"RECORD_TYPE","exclude":true,"values":["Tax"]}],
-	   "timeRange":{"relative":"YEAR_TO_DATE","start":"2026-01-01","end":"2026-08-30"}},
-	  {"name":"b","metric":"AmortizedCost","granularity":"DAILY",
-	   "timeRange":{"relative":"CUSTOM","start":"2025-01-01","end":"2025-02-01"}}
-	]`)
-	specs, err := LoadSpecs(good)
-	if err != nil {
-		t.Fatalf("LoadSpecs: %v", err)
-	}
-	if len(specs) != 2 || specs[0].Name != "a" || specs[1].Name != "b" {
-		t.Fatalf("specs = %+v, want a and b", specs)
-	}
-	if len(specs[0].GroupBy) != 1 || specs[0].GroupBy[0].Key != "SERVICE" {
-		t.Errorf("a.GroupBy = %+v", specs[0].GroupBy)
-	}
-	if len(specs[0].Filters) != 1 || !specs[0].Filters[0].Exclude || specs[0].Filters[0].Values[0] != "Tax" {
-		t.Errorf("a.Filters = %+v", specs[0].Filters)
-	}
-	if specs[0].TimeRange.IsCustom() || !specs[1].TimeRange.IsCustom() {
-		t.Errorf("IsCustom: a=%v b=%v, want false/true",
-			specs[0].TimeRange.IsCustom(), specs[1].TimeRange.IsCustom())
-	}
-
-	if _, err := LoadSpecs(filepath.Join(dir, "missing.json")); err == nil {
-		t.Error("missing file: expected an error")
-	}
-
-	bad := write("bad.json", `{"name": "not an array"}`)
-	if _, err := LoadSpecs(bad); err == nil || !strings.Contains(err.Error(), bad) {
-		t.Errorf("bad json: err = %v, want one naming %s", err, bad)
-	}
-}
-
-func TestFind(t *testing.T) {
-	specs := []*Spec{{Name: "zeta"}, {Name: "alpha"}}
-	got, err := Find(specs, "alpha")
-	if err != nil || got != specs[1] {
-		t.Fatalf("Find(alpha) = %v, %v; want the second spec", got, err)
-	}
-	_, err = Find(specs, "nope")
-	if err == nil {
-		t.Fatal("Find(nope): expected an error")
-	}
-	// The message lists what is available, sorted, so a typo is easy to fix.
-	if !strings.Contains(err.Error(), `"nope"`) || !strings.Contains(err.Error(), "[alpha zeta]") {
-		t.Errorf("err = %q, want it to name the miss and list [alpha zeta]", err)
 	}
 }
 

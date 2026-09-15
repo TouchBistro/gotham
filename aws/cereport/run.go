@@ -3,10 +3,8 @@ package cereport
 import (
 	"context"
 	"encoding/csv"
-	"encoding/json"
 	"fmt"
 	"io"
-	"os"
 	"sort"
 	"strconv"
 	"time"
@@ -14,34 +12,6 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer"
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
-
-// LoadSpecs reads a JSON array of specs from path.
-func LoadSpecs(path string) ([]*Spec, error) {
-	b, err := os.ReadFile(path)
-	if err != nil {
-		return nil, err
-	}
-	var specs []*Spec
-	if err := json.Unmarshal(b, &specs); err != nil {
-		return nil, fmt.Errorf("parsing %s: %w", path, err)
-	}
-	return specs, nil
-}
-
-// Find returns the spec with the given name.
-func Find(specs []*Spec, name string) (*Spec, error) {
-	for _, s := range specs {
-		if s.Name == name {
-			return s, nil
-		}
-	}
-	names := make([]string, 0, len(specs))
-	for _, s := range specs {
-		names = append(names, s.Name)
-	}
-	sort.Strings(names)
-	return nil, fmt.Errorf("no report named %q; have:\n  %v", name, names)
-}
 
 // Result is a report's data laid out as a grid: one row per group, one column
 // per time period, in the order Cost Explorer returned them.
@@ -59,9 +29,9 @@ type CostExplorerAPI interface {
 	GetCostAndUsage(context.Context, *costexplorer.GetCostAndUsageInput, ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error)
 }
 
-// Run executes the report and collects every page of results. Cost Explorer
-// paginates group results, so a report with many groups is incomplete unless
-// every page is followed.
+// Run validates the spec (see Validate), executes the report and collects
+// every page of results. Cost Explorer paginates group results, so a report
+// with many groups is incomplete unless every page is followed.
 func Run(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, opts ...PeriodOption) (*Result, error) {
 	in, err := spec.GetCostAndUsageInput(now, opts...)
 	if err != nil {
