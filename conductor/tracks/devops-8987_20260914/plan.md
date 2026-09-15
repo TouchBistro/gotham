@@ -216,7 +216,7 @@ gate is green, and a PR is open against `master`.
 
 ---
 
-## Phase 4: API refinement after review (2026-09-14)
+## Phase 4: API refinement after review (2026-09-14) [checkpoint: c7e6280]
 
 **Goal:** gotham's `aws/cereport` is a pure report engine with a self-describing, validated
 `Spec`. Spec loading and selection move to the client (cerep).
@@ -252,7 +252,7 @@ validation, so bad specs failed late or cost an API request; consumers had to kn
     permissions/cost/limits.
   - `doc.go`: Spec literal in the usage example; mentions Validate and the constants.
 
-- [x] **Task 4.4: Verification — Phase 4** [checkpoint marker]
+- [x] **Task 4.4: Verification — Phase 4** [checkpoint marker] [c7e6280]
   - **Results (2026-09-14):** `go test -count=1 -cover ./aws/cereport/` → **98.3%**. Below 100%: `addAt` 85.7%, `WriteCSV` 96.2%
     (as before) and `GetCostAndUsageInput` 81.8% — its `ResolvePeriod`/`Expression` error returns are unreachable now that
     `Validate` runs first; kept as defensive code. `golangci-lint` 0 issues; `go vet` ok; `gofmt -l` empty; `go build ./...` ok.
