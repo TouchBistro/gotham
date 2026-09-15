@@ -261,6 +261,8 @@ validation, so bad specs failed late or cost an API request; consumers had to kn
     `Metrics`, `Granularities`, `Dimensions`, `RangeLastDays`, `RangeLastMonths`, and the `Type*`/`Metric*`/`Granularity*`/`Range*` constants.
   - `go test -cover ./aws/cereport/` ≥ 90%; lint 0; vet; gofmt; `make build lint test`.
   - Push to PR #17; CircleCI green; Jira follow-up.
+  - **Done (2026-09-14):** `make build` / `make lint` (0 issues) / `make test` green; pushed `b45b52a`; CircleCI `build-lint-test` passed (build 49);
+    PR #17 description updated; Jira round-2 comment posted; cerep `loadSpecs`/`findSpec` snippet handed to the requester.
 
 ---
 
