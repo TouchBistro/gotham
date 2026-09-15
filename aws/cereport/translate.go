@@ -44,8 +44,6 @@ func (s Spec) ResolvePeriod(now time.Time, opts ...PeriodOption) (start, end str
 		o(&cfg)
 	}
 	now = now.UTC()
-	const layout = "2006-01-02"
-
 	if s.TimeRange.IsCustom() {
 		if s.TimeRange.Start == "" || s.TimeRange.End == "" {
 			return "", "", fmt.Errorf("report %q has a custom range with no start/end dates", s.Name)
@@ -60,29 +58,32 @@ func (s Spec) ResolvePeriod(now time.Time, opts ...PeriodOption) (start, end str
 		last = today
 	}
 	switch r := s.TimeRange.Relative; {
-	case r == "YEAR_TO_DATE":
-		return time.Date(now.Year(), time.January, 1, 0, 0, 0, 0, time.UTC).Format(layout), last.Format(layout), nil
-	case r == "MONTH_TO_DATE":
-		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).Format(layout), last.Format(layout), nil
+	case r == RangeYearToDate:
+		return time.Date(now.Year(), time.January, 1, 0, 0, 0, 0, time.UTC).Format(dateLayout), last.Format(dateLayout), nil
+	case r == RangeMonthToDate:
+		return time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).Format(dateLayout), last.Format(dateLayout), nil
 	case lastNRange.MatchString(r):
 		m := lastNRange.FindStringSubmatch(r)
 		n, _ := strconv.Atoi(m[1])
 		if m[2] == "DAYS" {
-			return today.AddDate(0, 0, -n).Format(layout), last.Format(layout), nil
+			return today.AddDate(0, 0, -n).Format(dateLayout), last.Format(dateLayout), nil
 		}
 		// Rolling months run from the first of the month N months back, so the
 		// buckets line up with calendar months under MONTHLY granularity.
 		from := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.UTC).AddDate(0, -n, 0)
-		return from.Format(layout), last.Format(layout), nil
+		return from.Format(dateLayout), last.Format(dateLayout), nil
 	default:
 		return "", "", fmt.Errorf("report %q: unhandled relative range %q; add it to ResolvePeriod", s.Name, r)
 	}
 }
 
-// GetCostAndUsageInput builds the Cost Explorer request for this report as of
-// the given time. Reports with a relative range resolve against `now`, so a
+// GetCostAndUsageInput validates the spec (see Validate) and builds the Cost
+// Explorer request for this report as of the given time. Reports with a relative range resolve against `now`, so a
 // year-to-date report stays year-to-date on every replay.
 func (s Spec) GetCostAndUsageInput(now time.Time, opts ...PeriodOption) (*costexplorer.GetCostAndUsageInput, error) {
+	if err := s.Validate(); err != nil {
+		return nil, err
+	}
 	start, end, err := s.ResolvePeriod(now, opts...)
 	if err != nil {
 		return nil, err
@@ -131,19 +132,19 @@ func (s Spec) Expression() (*cetypes.Expression, error) {
 func (f Filter) expression() (*cetypes.Expression, error) {
 	var e cetypes.Expression
 	switch f.Type {
-	case "DIMENSION":
+	case TypeDimension:
 		e.Dimensions = &cetypes.DimensionValues{
 			Key:          cetypes.Dimension(f.Key),
 			Values:       f.Values,
 			MatchOptions: []cetypes.MatchOption{cetypes.MatchOptionEquals},
 		}
-	case "TAG":
+	case TypeTag:
 		e.Tags = &cetypes.TagValues{
 			Key:          aws.String(f.Key),
 			Values:       f.Values,
 			MatchOptions: []cetypes.MatchOption{cetypes.MatchOptionEquals},
 		}
-	case "COST_CATEGORY":
+	case TypeCostCategory:
 		e.CostCategories = &cetypes.CostCategoryValues{
 			Key:          aws.String(f.Key),
 			Values:       f.Values,

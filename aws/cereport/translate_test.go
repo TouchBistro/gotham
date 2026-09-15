@@ -8,6 +8,9 @@ import (
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
 
+// timeNow is a fixed clock for tests that only need "some time".
+func timeNow() time.Time { return time.Date(2026, 8, 30, 14, 0, 0, 0, time.UTC) }
+
 func TestExpression(t *testing.T) {
 	dim := Filter{Type: "DIMENSION", Key: "SERVICE", Values: []string{"Amazon EC2"}}
 	tag := Filter{Type: "TAG", Key: "repo", Values: []string{"tb-pos"}}
