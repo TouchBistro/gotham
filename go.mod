@@ -4,6 +4,8 @@ go 1.25.0
 
 require (
 	github.com/TouchBistro/goutils v0.5.0
+	github.com/aws/aws-sdk-go-v2 v1.45.1
+	github.com/aws/aws-sdk-go-v2/service/costexplorer v1.69.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/lestrrat-go/jwx/v2 v2.1.3
 	github.com/lib/pq v1.11.2
@@ -15,6 +17,9 @@ require (
 )
 
 require (
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.1 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.1 // indirect
+	github.com/aws/smithy-go v1.28.1 // indirect
 	github.com/bytedance/sonic v1.11.6 // indirect
 	github.com/bytedance/sonic/loader v0.1.1 // indirect
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
