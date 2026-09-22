@@ -266,7 +266,7 @@ validation, so bad specs failed late or cost an API request; consumers had to kn
 
 ---
 
-## Phase 5: Reinstate the console-URL parser (2026-09-22)
+## Phase 5: Reinstate the console-URL parser (2026-09-22) [checkpoint: 9b60f39]
 
 **Goal:** `ParseURL` is back in gotham, adapted to the post-Phase-4 package: constants, no
 parser-only `Spec` fields, validated output, correct `AZ` mapping.
@@ -290,7 +290,7 @@ parser-only `Spec` fields, validated output, correct `AZ` mapping.
     devops-go-tools `testdata/urls.txt` parse and `DeepEqual` the checked-in `specs.golden.json`
     minus the three dropped keys.
 
-- [x] **Task 5.2: Verification — Phase 5** [checkpoint marker]
+- [x] **Task 5.2: Verification — Phase 5** [checkpoint marker] [9b60f39]
   - **Results (2026-09-22):** `go test -count=1 -cover ./aws/cereport/` → **98.8%**; `golangci-lint` 0 issues; `go vet` ok; `gofmt -l` empty;
     `make build` / `make lint` / `make test` green. Golden round-trip 12/12 JSON-identical (DeepEqual differs only on `groupBy=[]` → empty vs nil slice).
   - README gained "Capturing a Spec from a console URL"; doc.go mentions `ParseURL`; spec.md FR-7 + decision-log reversal entry.
