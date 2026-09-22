@@ -266,6 +266,40 @@ validation, so bad specs failed late or cost an API request; consumers had to kn
 
 ---
 
+## Phase 5: Reinstate the console-URL parser (2026-09-22)
+
+**Goal:** `ParseURL` is back in gotham, adapted to the post-Phase-4 package: constants, no
+parser-only `Spec` fields, validated output, correct `AZ` mapping.
+
+**Why:** requester reversed the Phase 2b decision and dropped the original `url.go` /
+`url_test.go` into `aws/cereport`. Verbatim copies did not compile (package name,
+`relativeCustom`, removed fields, `sortedKeys` collision, three duplicated test names).
+
+### Tasks
+
+- [x] **Task 5.1: Adapt `url.go` and `url_test.go`** (FR-1, FR-4, FR-7) [ebdda3f] docs [bb60a33]
+  - `package cereport`; drop `relativeCustom`; map values use the `Metric*`/`Granularity*`/`Type*`
+    constants; `ReportID`/`ReportARN`/`ChartStyle` assignments removed; `sortedKeys` in
+    `validate.go` made generic and reused; `sort` import dropped.
+  - `AZ` maps to `AZ` (was `AVAILABILITY_ZONE`, not an API dimension).
+  - `ParseURL` validates the spec before returning it.
+  - Tests: pre-purge parser tests restored (fragment builder + tag/reject cases) minus the four
+    translate tests already in `translate_test.go` and the `ReportID`/`ChartStyle` assertions;
+    plus `TestConsoleDimensions_AreAPIDimensions` and `TestParseURL_ValidatesResult`.
+  - Golden round-trip (temporary test, not committed): the 12 real console URLs in
+    devops-go-tools `testdata/urls.txt` parse and `DeepEqual` the checked-in `specs.golden.json`
+    minus the three dropped keys.
+
+- [x] **Task 5.2: Verification — Phase 5** [checkpoint marker]
+  - **Results (2026-09-22):** `go test -count=1 -cover ./aws/cereport/` → **98.8%**; `golangci-lint` 0 issues; `go vet` ok; `gofmt -l` empty;
+    `make build` / `make lint` / `make test` green. Golden round-trip 12/12 JSON-identical (DeepEqual differs only on `groupBy=[]` → empty vs nil slice).
+  - README gained "Capturing a Spec from a console URL"; doc.go mentions `ParseURL`; spec.md FR-7 + decision-log reversal entry.
+  - `go test -cover ./aws/cereport/` ≥ 90%; lint 0; vet; gofmt; `make build lint test`.
+  - README/doc.go describe `ParseURL`; spec.md decision log records the reversal.
+  - Push to PR #17; CircleCI green.
+
+---
+
 ## Risks and Dependencies
 
 | Item | Notes |

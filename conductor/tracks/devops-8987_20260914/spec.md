@@ -58,7 +58,7 @@ tests that lived in `url_test.go` move to `translate_test.go`. Request building 
 unchanged.
 
 **Exported surface (must be identical):** `Spec`, `Group`, `Filter`, `TimeRange`,
-`TimeRange.IsCustom`, `Spec.Validate`, `Metrics`, `Granularities`, `Dimensions`, the `Type*` / `Metric*` / `Granularity*` / `Range*` constants, `RangeLastDays`, `RangeLastMonths`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
+`TimeRange.IsCustom`, `ParseURL`, `Spec.Validate`, `Metrics`, `Granularities`, `Dimensions`, the `Type*` / `Metric*` / `Granularity*` / `Range*` constants, `RangeLastDays`, `RangeLastMonths`, `PeriodOption`, `ExcludeCurrentDay`, `Spec.ResolvePeriod`,
 `Spec.GetCostAndUsageInput`, `Spec.Expression`, `Result`, `Result.Total`,
 `Result.GrandTotal`, `Result.SortedKeys`, `Result.WriteCSV`, `CostExplorerAPI`, `Run`.
 
@@ -136,6 +136,22 @@ before any request is built. `GetCostAndUsageInput` and `Run` validate first.
 
 **Priority:** P1
 
+### FR-7: `ParseURL` (reinstated 2026-09-22)
+
+**Description:** Convert a Cost Explorer saved-report console URL into a `Spec`, so reports built
+in the console can be captured once and replayed from code. Reverses the 2026-09-14 removal.
+
+**Acceptance Criteria:**
+- Same parsing behaviour as the devops-go-tools original: fragment query string, `reportName`
+  trimmed, metric / granularity / dimension id mapping tables, `TagKeyValue:` group-by,
+  `growableValue` tag filter rows, INCLUDES/EXCLUDES, rejection of non-STANDARD modes, untagged /
+  uncategorized toggles and unknown ids.
+- Differences: no `ReportID`/`ReportARN`/`ChartStyle`; mapping tables use the package constants;
+  `AZ` maps to the API dimension `AZ`; the returned spec passes `Validate`.
+- The 12 real console URLs round-trip to the checked-in golden specs (minus the dropped keys).
+
+**Priority:** P1
+
 ### FR-5: Release
 
 **Acceptance Criteria:**
@@ -197,4 +213,5 @@ before any request is built. `GetCostAndUsageInput` and `Run` validate first.
 | 2026-09-14 | **Scope change:** console-URL parsing (`url.go`, `ParseURL`, parser tests) purged from gotham; only report generation stays. Capture tooling belongs with the report data in cerep. |
 | 2026-09-14 | `Spec` fields `ReportID`, `ReportARN`, `ChartStyle` removed (parser-written, never read). `Name` kept (lookup key, filenames, error messages); `TimeRange.Start`/`End` kept (CUSTOM ranges). |
 | 2026-09-14 | `LoadSpecs`/`Find` removed from gotham: client config layer (file path, JSON array shape, terminal-formatted error), nothing over `json.Unmarshal`. Moved into the cerep CLI as private helpers. |
+| 2026-09-22 | **Reversal:** `ParseURL` reinstated in gotham at the requester's request (they re-added `url.go`/`url_test.go`). Adapted to the current package; `AZ` mapping fixed; output validated. The three parser-only `Spec` fields stay removed. |
 | 2026-09-14 | `Spec.Validate()` added with exported constants; `GetCostAndUsageInput`/`Run` validate first so a bad spec never costs an API request. Dimensions/granularities/types from SDK enums; metrics hand-kept (API spelling differs from the SDK `Metric` enum). |
