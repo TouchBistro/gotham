@@ -44,7 +44,7 @@ func enumSet[E ~string](vals []E) map[string]bool {
 	return m
 }
 
-func sortedKeys(m map[string]bool) []string {
+func sortedKeys[V any](m map[string]V) []string {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
