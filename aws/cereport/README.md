@@ -10,7 +10,8 @@ It is the library behind the `cer` CLI (repo `cerep`), which holds TouchBistro's
 report definitions. This package holds no report data and does no credential
 handling: you pass in any client that implements `CostExplorerAPI`. Importing it
 adds `aws-sdk-go-v2` core and `service/costexplorer` to your module, not
-`config`.
+`config`. `ParseURL` turns an existing saved report's console URL into a `Spec`,
+so reports built in the console can be captured once and replayed from code.
 
 ---
 
@@ -98,7 +99,9 @@ Total,61342.61,59857.42,…,183666.82
 JSON tags are the lowerCamel field names (`name`, `metric`, `granularity`,
 `groupBy[].type/key`, `filters[].type/key/exclude/values`,
 `timeRange.relative/start/end`), so specs can live in a checked-in file — see
-[Loading specs from JSON](#loading-specs-from-json).
+[Loading specs from JSON](#loading-specs-from-json). To start from a report that
+already exists in the console, see
+[Capturing a Spec from a console URL](#capturing-a-spec-from-a-console-url).
 
 ### Example 1 — monthly spend by service, year to date
 
@@ -191,10 +194,38 @@ a `CUSTOM` range has `Start` and `End` · any dates given are `yyyy-MM-dd` with
 `Start` before `End`. `cereport.Metrics()`, `Granularities()` and `Dimensions()`
 return the accepted values, sorted, for help text.
 
+### Capturing a Spec from a console URL
+
+The Cost Explorer API has no operation that reads saved reports, but the console
+URL of a saved report carries its whole definition in the fragment query string.
+Open the report in the console, copy the browser URL, and parse it once:
+
+```go
+spec, err := cereport.ParseURL(consoleURL) // full URL, or just "/costmanagement/home?…#/cost-explorer?…"
+if err != nil {
+	log.Fatal(err)
+}
+b, _ := json.MarshalIndent(spec, "", "  ")
+os.WriteFile("reports/"+spec.Name+".json", b, 0o644)
+```
+
+What it reads: `reportName` → `Name` (trimmed), `costAggregate` /
+`useNormalizedUnits` → `Metric`, `granularity`, `groupBy` (console dimension ids
+and `TagKeyValue:<key>` tag groups), `filter` rows (dimension, tag via
+`growableValue`, includes/excludes), `historicalRelativeRange` + `startDate` /
+`endDate` → `TimeRange`. The result is validated before it is returned.
+
+What it rejects, on purpose: report modes other than `STANDARD` (reservation and
+Savings Plans reports use different APIs), `showOnlyUntagged` /
+`showOnlyUncategorized` (would need an `ABSENT` match the `Spec` cannot express),
+and console dimension ids not in its mapping table — add the id rather than let
+a guess produce a silently wrong query. Cost-category *group-by* is not parsed
+from URLs (no captured report uses it); cost-category *filters* are.
+
 ### Loading specs from JSON
 
-The package does not read files. Decode into `[]cereport.Spec` with the
-standard library and validate:
+Decode a checked-in file into `[]cereport.Spec` with the standard library and
+validate:
 
 ```json
 [

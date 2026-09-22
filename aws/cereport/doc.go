@@ -7,7 +7,8 @@
 // follows every page of results into a Result; Result.WriteCSV writes the
 // grid. The Metric*, Granularity*, Type* and Range* constants name the
 // accepted values, and Spec's JSON tags let definitions live in a checked-in
-// file.
+// file. ParseURL turns an existing saved report's console URL into a Spec, the
+// only machine-readable route to a report built in the console.
 //
 // The package takes a CostExplorerAPI interface rather than building a client,
 // so callers own credentials and configuration and this package adds no
@@ -47,6 +48,10 @@
 // ranges include today by default, matching the Cost Explorer console; today's
 // data is still settling, so pass ExcludeCurrentDay for a stable, re-runnable
 // snapshot. The caller's credentials need the ce:GetCostAndUsage action.
+//
+// To capture a report that already exists in the console:
+//
+//	spec, err := cereport.ParseURL(consoleURL)
 //
 // See README.md in this directory for more Spec and Result examples.
 package cereport
