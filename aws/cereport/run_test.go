@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -377,5 +378,50 @@ func TestWriteCSV_WriterErrors(t *testing.T) {
 				t.Fatal("expected the writer's error to surface")
 			}
 		})
+	}
+}
+
+// TestWriteCSV_Deterministic: the same Result always writes the same bytes.
+// Totals used to be summed in map order; floating-point addition is not
+// associative, so the last digits of the Total row changed from run to run and
+// two back-to-back runs of the same report could not be diffed.
+func TestWriteCSV_Deterministic(t *testing.T) {
+	rows := map[string][]float64{}
+	for i := 0; i < 71; i++ { // as many services as the ytd by-service report
+		rows[fmt.Sprintf("svc%02d", i)] = []float64{float64(i)*123.4567891 + 0.1, float64(i%7)*0.3333333 + 0.2}
+	}
+	r := &Result{
+		Spec:    &Spec{GroupBy: []Group{{Type: TypeDimension, Key: "SERVICE"}}},
+		Periods: []string{"2026-01-01", "2026-02-01"},
+		Rows:    rows,
+	}
+	var first string
+	for n := 0; n < 50; n++ {
+		var buf bytes.Buffer
+		if err := r.WriteCSV(&buf); err != nil {
+			t.Fatalf("WriteCSV: %v", err)
+		}
+		if n == 0 {
+			first = buf.String()
+			continue
+		}
+		if buf.String() != first {
+			t.Fatalf("call %d wrote different bytes from call 0", n)
+		}
+	}
+}
+
+func TestPeriodTotals(t *testing.T) {
+	r := &Result{
+		Periods: []string{"2026-01-01", "2026-02-01"},
+		// A short row (fewer amounts than periods) contributes what it has.
+		Rows: map[string][]float64{"a": {1, 2}, "b": {3, 4}, "c": {5}},
+	}
+	got := r.PeriodTotals()
+	if len(got) != 2 || got[0] != 9 || got[1] != 6 {
+		t.Errorf("PeriodTotals = %v, want [9 6]", got)
+	}
+	if got := (&Result{}).PeriodTotals(); len(got) != 0 {
+		t.Errorf("empty Result: PeriodTotals = %v, want []", got)
 	}
 }

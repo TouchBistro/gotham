@@ -13,6 +13,10 @@ import (
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
 
+// totalLabel heads the CSV's per-row total column and labels its grand total
+// row.
+const totalLabel = "Total"
+
 // Result is a report's data laid out as a grid: one row per group, one column
 // per time period, in the order Cost Explorer returned them.
 type Result struct {
@@ -118,11 +122,31 @@ func (r *Result) Total(key string) float64 {
 	return t
 }
 
-// GrandTotal returns the sum of every row.
+// GrandTotal returns the sum of every row. Rows are added in key order, so
+// the result is the same on every call (see PeriodTotals).
 func (r *Result) GrandTotal() float64 {
 	var t float64
-	for k := range r.Rows {
+	for _, k := range sortedKeys(r.Rows) {
 		t += r.Total(k)
+	}
+	return t
+}
+
+// PeriodTotals returns, for each period, the sum of every row: the figures on
+// the CSV's Total row.
+//
+// Rows are added in key order. Floating-point addition is not associative, so
+// summing in map order (as this package once did) makes the last digits of a
+// total vary between runs, and two back-to-back runs of the same report stop
+// diffing clean.
+func (r *Result) PeriodTotals() []float64 {
+	t := make([]float64, len(r.Periods))
+	for _, k := range sortedKeys(r.Rows) {
+		for i, v := range r.Rows[k] {
+			if i < len(t) {
+				t[i] += v
+			}
+		}
 	}
 	return t
 }
@@ -159,41 +183,47 @@ func (r *Result) WriteCSV(w io.Writer) error {
 	defer cw.Flush()
 
 	header := append([]string{groupHeader(r.Spec)}, r.Periods...)
-	header = append(header, "Total")
+	header = append(header, totalLabel)
 	if err := cw.Write(header); err != nil {
 		return err
 	}
-	for _, k := range r.SortedKeys() {
-		rec := make([]string, 0, len(r.Periods)+2)
-		rec = append(rec, k)
-		for _, v := range r.Rows[k] {
-			rec = append(rec, strconv.FormatFloat(v, 'f', -1, 64))
-		}
-		rec = append(rec, strconv.FormatFloat(r.Total(k), 'f', -1, 64))
-		if err := cw.Write(rec); err != nil {
-			return err
-		}
+	if err := r.writeRows(cw); err != nil {
+		return err
 	}
-	total := make([]string, 0, len(r.Periods)+2)
-	total = append(total, "Total")
-	for i := range r.Periods {
-		var t float64
-		for _, row := range r.Rows {
-			t += row[i]
-		}
-		total = append(total, strconv.FormatFloat(t, 'f', -1, 64))
-	}
-	total = append(total, strconv.FormatFloat(r.GrandTotal(), 'f', -1, 64))
-	if err := cw.Write(total); err != nil {
+	if err := cw.Write(record(totalLabel, r.PeriodTotals(), r.GrandTotal())); err != nil {
 		return err
 	}
 	cw.Flush()
 	return cw.Error()
 }
 
+// writeRows writes one record per row, by descending total.
+func (r *Result) writeRows(cw *csv.Writer) error {
+	for _, k := range r.SortedKeys() {
+		if err := cw.Write(record(k, r.Rows[k], r.Total(k))); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// record is one CSV line: a label, one cell per period, then the row total.
+func record(label string, amounts []float64, total float64) []string {
+	rec := make([]string, 0, len(amounts)+2)
+	rec = append(rec, label)
+	for _, v := range amounts {
+		rec = append(rec, formatAmount(v))
+	}
+	return append(rec, formatAmount(total))
+}
+
+// formatAmount writes an amount at full precision: the shortest decimal that
+// parses back to the same float64.
+func formatAmount(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
+
 func groupHeader(s *Spec) string {
 	if len(s.GroupBy) == 0 {
-		return "Total"
+		return totalLabel
 	}
 	parts := make([]string, 0, len(s.GroupBy))
 	for _, g := range s.GroupBy {
