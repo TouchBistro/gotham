@@ -342,7 +342,7 @@ union of differently-shaped slices either leaks unintended costs or needs severa
 
 ---
 
-## Phase 7: Sub-total label convention (2026-09-28)
+## Phase 7: Sub-total label convention (2026-09-28) [checkpoint: 6abed41]
 
 **Goal:** a CSV consumer can tell every aggregate row with one rule: the label is `Total` or ends
 in ` Total`. Grouped multi-set sub-total rows read `<set> Total`; the grand total stays `Total`;
@@ -361,7 +361,7 @@ is the spreadsheet pivot convention and matches the console export's `<dimension
   - **Green:** `subTotalLabel`, `isTotalLabel` in run.go; `WriteCSV` uses the suffix when grouped;
     `validateFilterSets` uses `isTotalLabel`; godoc, README (convention + group-key caveat), doc.go.
 
-- [x] **Task 7.2: Verification — Phase 7** [checkpoint marker]
+- [x] **Task 7.2: Verification — Phase 7** [checkpoint marker] [6abed41]
   - **Results (2026-09-28):** `make build` ok; `make lint` 0 issues; `make test` all packages ok; `aws/cereport` 98.8%.
   - Grouped multi-set CSV writes `db Total` / `stream Total`; ungrouped keeps bare set names; single-set output unchanged.
   - eng-reports still needs its own change to use the rule (it matches exact labels today); not in this repo.
