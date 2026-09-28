@@ -318,7 +318,7 @@ union of differently-shaped slices either leaks unintended costs or needs severa
   - **Green:** `PeriodTotals()` (new, exported) and `GrandTotal()` sum rows in key order;
     `WriteCSV` uses `PeriodTotals` for the Total row.
 
-- [~] **Task 6.2: `FilterSets` in `Spec`, `Split`, multi-set `Run` and `WriteCSV`** (FR-8)
+- [x] **Task 6.2: `FilterSets` in `Spec`, `Split`, multi-set `Run` and `WriteCSV`** (FR-8) [39c420f]
   - **Red:** validation rules for sets; `Split` (common + set filters, no aliasing, single-set is
     itself); `GetCostAndUsageInput` rejects multi-set; `Run` issues one request per set, wraps a
     set's error with its name, aligns periods, fills `Sets`, merges `Rows`; grouped and ungrouped
@@ -327,7 +327,7 @@ union of differently-shaped slices either leaks unintended costs or needs severa
     `filterSets[i].filters`; `Spec.Split`; `Result.Sets`; `runOne` + `alignPeriods`; `WriteCSV`
     sections; `groupHeader` → `Filter set` for ungrouped multi-set.
 
-- [ ] **Task 6.3: README and doc.go** (FR-3, FR-8)
+- [~] **Task 6.3: README and doc.go** (FR-3, FR-8)
 
 - [ ] **Task 6.4: Verification — Phase 6** [checkpoint marker]
 
