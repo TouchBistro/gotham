@@ -361,7 +361,11 @@ is the spreadsheet pivot convention and matches the console export's `<dimension
   - **Green:** `subTotalLabel`, `isTotalLabel` in run.go; `WriteCSV` uses the suffix when grouped;
     `validateFilterSets` uses `isTotalLabel`; godoc, README (convention + group-key caveat), doc.go.
 
-- [~] **Task 7.2: Verification — Phase 7** [checkpoint marker]
+- [x] **Task 7.2: Verification — Phase 7** [checkpoint marker]
+  - **Results (2026-09-28):** `make build` ok; `make lint` 0 issues; `make test` all packages ok; `aws/cereport` 98.8%.
+  - Grouped multi-set CSV writes `db Total` / `stream Total`; ungrouped keeps bare set names; single-set output unchanged.
+  - eng-reports still needs its own change to use the rule (it matches exact labels today); not in this repo.
+  - Not pushed.
 
 ---
 
