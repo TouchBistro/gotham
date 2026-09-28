@@ -92,13 +92,14 @@ Total,61342.61,59857.42,…,183666.82
 | `Metric` | One `Metric*` constant: `UnblendedCost`, `BlendedCost`, `AmortizedCost`, `NetUnblendedCost`, `NetAmortizedCost`, `UsageQuantity`, `NormalizedUsageAmount`. |
 | `Granularity` | `GranularityHourly`, `GranularityDaily` or `GranularityMonthly`. |
 | `GroupBy` | Up to two `Group`s. `Type` is `TypeDimension`, `TypeTag` or `TypeCostCategory`; `Key` is the dimension name (`SERVICE`, `LINKED_ACCOUNT`, `REGION`, `USAGE_TYPE`, … — `cereport.Dimensions()` lists all 35), the tag key, or the cost-category name. Omit for period totals only. |
-| `Filters` | Same `Type`/`Key` shape plus `Values` (API-side values, not console labels) and `Exclude`. Clauses AND together; `Exclude` wraps a clause in NOT. |
+| `Filters` | Same `Type`/`Key` shape plus `Values` (API-side values, not console labels) and `Exclude`. Clauses AND together; `Exclude` wraps a clause in NOT. In a multi-set report they apply to every set. |
+| `FilterSets` | Optional. Two or more named `FilterSet`s (`Name`, `Filters`) for a report that is a union of slices, with a sub-total per set. See [Example 5](#example-5--a-union-of-named-slices-filter-sets). |
 | `TimeRange.Relative` | `RangeYearToDate`, `RangeMonthToDate`, `RangeLastDays(n)`, `RangeLastMonths(n)` or `RangeCustom`. |
 | `TimeRange.Start`, `End` | `yyyy-MM-dd`; start inclusive, end exclusive. Required for `RangeCustom`, ignored otherwise. |
 
 JSON tags are the lowerCamel field names (`name`, `metric`, `granularity`,
 `groupBy[].type/key`, `filters[].type/key/exclude/values`,
-`timeRange.relative/start/end`), so specs can live in a checked-in file — see
+`filterSets[].name/filters`, `timeRange.relative/start/end`), so specs can live in a checked-in file — see
 [Loading specs from JSON](#loading-specs-from-json). To start from a report that
 already exists in the console, see
 [Capturing a Spec from a console URL](#capturing-a-spec-from-a-console-url).
@@ -166,6 +167,83 @@ spec := cereport.Spec{
 }
 ```
 
+### Example 5 — a union of named slices (filter sets)
+
+Some reports are a union of differently-shaped slices: everything in one
+account plus one service's tagged resources elsewhere, or an app's databases,
+its Kafka clusters and part of its EC2. The console's filter panel ANDs every
+clause, so no single filter list describes such a union without pulling in
+costs you did not mean. `FilterSets` does: name each slice, and the report runs
+one request per set and stacks the results.
+
+```json
+{
+  "name": "12mo_stack_amortized",
+  "metric": "AmortizedCost",
+  "granularity": "MONTHLY",
+  "groupBy": [{ "type": "DIMENSION", "key": "SERVICE" }],
+  "filters": [
+    { "type": "DIMENSION", "key": "RECORD_TYPE", "exclude": true,
+      "values": ["Distributor Discount", "Tax", "Refund"] }
+  ],
+  "filterSets": [
+    { "name": "app-account", "filters": [
+      { "type": "DIMENSION", "key": "LINKED_ACCOUNT", "values": ["111122223333"] }
+    ]},
+    { "name": "ansible-awx", "filters": [
+      { "type": "TAG", "key": "serviceid", "values": ["awx"] },
+      { "type": "TAG", "key": "groupid", "values": ["ansible"] },
+      { "type": "DIMENSION", "key": "LINKED_ACCOUNT", "exclude": true, "values": ["111122223333"] }
+    ]}
+  ],
+  "timeRange": { "relative": "LAST_12_MONTHS" }
+}
+```
+
+- `filters` apply to every set, and each set ANDs its own on top. Metric,
+  granularity, group-by and time range are shared, so every set has the same
+  columns.
+- One `GetCostAndUsage` request per set, plus one per extra page of groups.
+- In Go: `FilterSets: []cereport.FilterSet{{Name: "app-account", Filters: …}, …}`.
+
+The CSV stacks each set's rows, then a sub-total row named after the set, then
+the grand `Total`:
+
+```
+SERVICE,2025-09-01,…,2026-09-01,Total
+Amazon Relational Database Service,812.4,…,10561.2
+Amazon Elastic Compute Cloud - Compute,640.11,…,8321.43
+…
+app-account,2210.93,…,28742.09
+Amazon Elastic Compute Cloud - Compute,95.2,…,1237.6
+EC2 - Other,12.08,…,157.04
+ansible-awx,107.28,…,1394.64
+Total,2318.21,…,30136.73
+```
+
+A service can appear under more than one set, each time with that set's share.
+Without `groupBy` each set's only row would repeat its sub-total, so the report
+is one row per set under a `Filter set` header:
+
+```
+Filter set,2025-09-01,…,2026-09-01,Total
+app-account,2210.93,…,28742.09
+ansible-awx,107.28,…,1394.64
+Total,2318.21,…,30136.73
+```
+
+(Numbers are illustrative.)
+
+> **Keep the sets disjoint.** Sets are summed, not de-duplicated. A cost that
+> matches two sets is counted in both, and `Total` overstates the union. Here,
+> AWX resources running inside the app account would match both sets, which is
+> why `ansible-awx` excludes that account. The reliable pattern is a
+> single-valued dimension (`LINKED_ACCOUNT`, `SERVICE`, `REGION`, `USAGE_TYPE`,
+> …) that one set includes and the others exclude, or that each set includes
+> with values no other set uses. Every line item has exactly one value per
+> dimension, so such sets cannot overlap. `Validate` cannot check disjointness;
+> tags in particular can overlap in ways only the data shows.
+
 ### Validation
 
 `Spec.Validate` checks every rule Cost Explorer is known to enforce and reports
@@ -191,8 +269,10 @@ Rules: `Name` set · `Metric` and `Granularity` from the constants · at most tw
 track the `service/costexplorer` version in `go.mod`) · every `Filter` has at
 least one value · `Relative` is a known range, with `n ≥ 1` for rolling ranges ·
 a `CUSTOM` range has `Start` and `End` · any dates given are `yyyy-MM-dd` with
-`Start` before `End`. `cereport.Metrics()`, `Granularities()` and `Dimensions()`
-return the accepted values, sorted, for help text.
+`Start` before `End` · `FilterSets`, if given, has at least two sets, each with
+a name (present, unique, not `Total`) and at least one filter of its own.
+`cereport.Metrics()`, `Granularities()` and `Dimensions()` return the accepted
+values, sorted, for help text.
 
 ### Capturing a Spec from a console URL
 
@@ -283,9 +363,12 @@ request, follows every `NextPageToken`, and accumulates into a `Result`:
 | `Unit string` | `USD` for cost metrics; the usage unit otherwise. |
 | `Start`, `End string` | The resolved period actually requested. |
 | `Spec *Spec` | The spec that produced it. |
+| `Sets []*Result` | Multi-set reports only: one ordinary `Result` per filter set, in spec order, all on the same `Periods`. `Sets[i].Spec.Name` is the set's name and `Sets[i].GrandTotal()` its sub-total. `Rows` then sums the sets by group key. |
 
-Methods: `Total(key)`, `GrandTotal()`, `SortedKeys()` (descending total, ties by
-name), `WriteCSV(w)`.
+Methods: `Total(key)`, `GrandTotal()`, `PeriodTotals()` (the `Total` row's
+per-period sums), `SortedKeys()` (descending total, ties by name), `WriteCSV(w)`.
+Totals add rows in key order, so the same `Result` writes the same bytes every
+time.
 
 ### Example A — CSV to a file
 
@@ -305,7 +388,10 @@ ungrouped), then period start dates, then `Total`. Rows are sorted by
 descending total and each ends with its own total; a final `Total` row sums
 every column. Amounts are shortest-round-trip `float64`, never rounded to cents:
 the CSV is an interchange format and rounding is the presentation layer's job.
-Tag groups arrive from the API as `tagkey$value` and are written as-is.
+Tag groups arrive from the API as `tagkey$value` and are written as-is. A
+multi-set report stacks its sets instead ([Example 5](#example-5--a-union-of-named-slices-filter-sets)).
+Its sub-total rows sit among the group rows, so a consumer that charts every row
+except `Total` must also skip the rows named after a set.
 
 ### Example B — top five groups and their share
 
@@ -347,6 +433,19 @@ for _, key := range res.SortedKeys() {
 	}
 	fmt.Printf("%-45s %+6.1f%%\n", key, 100*(row[n-1]-row[n-2])/row[n-2])
 }
+```
+
+### Example F — per-set sub-totals
+
+```go
+// Multi-set report (Example 5): one Result per set, all on the same columns.
+for _, set := range res.Sets {
+	fmt.Printf("%-15s %12.2f\n", set.Spec.Name, set.GrandTotal())
+	for _, key := range set.SortedKeys()[:min(3, len(set.Rows))] {
+		fmt.Printf("  %-40s %12.2f\n", key, set.Total(key))
+	}
+}
+fmt.Printf("%-15s %12.2f %s\n", "Total", res.GrandTotal(), res.Unit)
 ```
 
 ### Time ranges and "today"
@@ -404,11 +503,13 @@ The package's own tests work this way and need no credentials.
 ## Permissions, cost, limits
 
 - Credentials need `ce:GetCostAndUsage`. AWS bills Cost Explorer API calls per
-  request; a report costs one request per page of groups.
+  request; a report costs one request per page of groups, and a multi-set report
+  that for each set.
 - Two group-by keys at most (enforced by `Validate`).
 - `HOURLY` needs hourly granularity enabled on the payer account and covers only
   recent days (14 at the time of writing).
 - One metric per report.
+- Filter sets are summed, not de-duplicated: keep them disjoint (Example 5).
 - The console's "show only untagged / uncategorized" toggles have no `Spec`
   equivalent.
 - Reservation and Savings Plans report modes use different Cost Explorer APIs

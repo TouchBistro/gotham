@@ -10,6 +10,11 @@
 // file. ParseURL turns an existing saved report's console URL into a Spec, the
 // only machine-readable route to a report built in the console.
 //
+// Spec.FilterSets makes a multi-set report: a union of named slices that no
+// single AND-only filter list can describe. Each set runs as its own request,
+// and the CSV stacks each set's rows, a sub-total row per set and the grand
+// Total. Sets are summed, not de-duplicated, so keep them disjoint.
+//
 // The package takes a CostExplorerAPI interface rather than building a client,
 // so callers own credentials and configuration and this package adds no
 // dependency on aws-sdk-go-v2/config. Cost Explorer is a global service
