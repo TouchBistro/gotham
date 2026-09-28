@@ -80,8 +80,8 @@ func Dimensions() []string { return sortedKeys(knownDimensions) }
 //     (see Dimensions).
 //   - Each Filter has a valid Type and Key (same rules) and at least one value.
 //   - FilterSets, if given, has at least two sets. Each has a name, unique
-//     and not "Total" (the grand total row), and at least one filter of its
-//     own; its filters follow the Filter rules.
+//     and not "Total" or ending in " Total" (those read as total rows), and
+//     at least one filter of its own; its filters follow the Filter rules.
 //   - TimeRange.Relative is CUSTOM (or empty), YEAR_TO_DATE, MONTH_TO_DATE,
 //     LAST_<n>_DAYS or LAST_<n>_MONTHS with n ≥ 1. A CUSTOM range has Start
 //     and End. Any Start or End given is yyyy-MM-dd, with Start before End.
@@ -130,7 +130,8 @@ func validateFilters(field string, filters []Filter) []error {
 }
 
 // validateFilterSets checks a multi-set report's sets. Names label CSV rows,
-// so they must be present, distinct, and distinct from the grand total's.
+// so they must be present, distinct, and must not read as a total row (see
+// isTotalLabel).
 func (s Spec) validateFilterSets() []error {
 	if len(s.FilterSets) == 0 {
 		return nil
@@ -147,8 +148,9 @@ func (s Spec) validateFilterSets() []error {
 		switch {
 		case name == "":
 			errs = append(errs, fmt.Errorf("%s: name is required", field))
-		case strings.EqualFold(name, totalLabel):
-			errs = append(errs, fmt.Errorf("%s: name %q is reserved for the grand total row", field, fs.Name))
+		case isTotalLabel(name):
+			errs = append(errs, fmt.Errorf("%s: name %q reads as a total row; it must not be %q or end in %q",
+				field, fs.Name, totalLabel, " "+totalLabel))
 		case seen[name]:
 			errs = append(errs, fmt.Errorf("%s: duplicate name %q", field, fs.Name))
 		}

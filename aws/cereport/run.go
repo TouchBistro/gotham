@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/costexplorer"
@@ -25,6 +26,19 @@ const (
 	// report, whose rows are the sets themselves.
 	filterSetHeader = "Filter set"
 )
+
+// subTotalLabel labels a filter set's sub-total row in a grouped multi-set
+// report: "<set> Total", the spreadsheet pivot-table convention.
+func subTotalLabel(set string) string { return set + " " + totalLabel }
+
+// isTotalLabel reports whether a CSV row label marks an aggregate row: it is
+// "Total" or ends in " Total", in any case. That one rule lets a consumer
+// skip the grand total and every sub-total. Filter-set names may not match
+// it, since they are data rows in an ungrouped multi-set report.
+func isTotalLabel(label string) bool {
+	l, t := strings.ToLower(strings.TrimSpace(label)), strings.ToLower(totalLabel)
+	return l == t || strings.HasSuffix(l, " "+t)
+}
 
 // Result is a report's data laid out as a grid: one row per group, one column
 // per time period, in the order Cost Explorer returned them.
@@ -272,12 +286,15 @@ func (r *Result) SortedKeys() []string {
 // the figure Cost Explorer reports. Rounding is the presentation layer's job.
 //
 // A multi-set report (see Spec.FilterSets) writes each set in spec order — its
-// rows by descending total, then a sub-total row labelled with the set's name
-// — and ends with the grand Total row. The same group key can appear under
-// more than one set. With no group-by a set's only row would repeat its
-// sub-total, so only the sub-total rows are written, under a first-column
-// header of "Filter set". Sub-total rows sit among group rows: a consumer that
-// charts every row except Total must also skip rows named after a set.
+// rows by descending total, then a sub-total row labelled "<set> Total" — and
+// ends with the grand Total row. The same group key can appear under more
+// than one set. With no group-by a set's only row would repeat its sub-total,
+// so each set is written as one row under its bare name, beneath a
+// first-column header of "Filter set": those rows are the data.
+//
+// Every aggregate row's label is "Total" or ends in " Total", so a consumer
+// can skip them all with one rule. The rule misreads only a group key that
+// itself ends in " Total"; AWS service names do not, but a tag value could.
 func (r *Result) WriteCSV(w io.Writer) error {
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
@@ -299,7 +316,11 @@ func (r *Result) WriteCSV(w io.Writer) error {
 				return err
 			}
 		}
-		if err := cw.Write(record(set.Spec.Name, set.PeriodTotals(), set.GrandTotal())); err != nil {
+		label := set.Spec.Name
+		if grouped {
+			label = subTotalLabel(label)
+		}
+		if err := cw.Write(record(label, set.PeriodTotals(), set.GrandTotal())); err != nil {
 			return err
 		}
 	}

@@ -42,6 +42,12 @@ func TestValidate_OK(t *testing.T) {
 			TimeRange: TimeRange{Relative: RangeLastMonths(6), Start: "2026-02-01", End: "2026-08-31"},
 		},
 		"filter sets with common filters": func() Spec { s := validSpec(); s.FilterSets = twoSets(); return s }(),
+		"set names that merely contain total": func() Spec {
+			s := validSpec()
+			s.FilterSets = twoSets()
+			s.FilterSets[0].Name, s.FilterSets[1].Name = "total-spend", "db subtotal"
+			return s
+		}(),
 		"ungrouped filter sets": {
 			Name: "stack", Metric: MetricAmortizedCost, Granularity: GranularityMonthly,
 			FilterSets: twoSets(), TimeRange: TimeRange{Relative: RangeMonthToDate},
@@ -87,7 +93,8 @@ func TestValidate_Rules(t *testing.T) {
 		{"one filter set", func(s *Spec) { s.FilterSets = twoSets()[:1] }, "filterSets has 1 entry; a multi-set report needs at least 2"},
 		{"filter set without name", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[1].Name = " " }, "filterSets[1]: name is required"},
 		{"duplicate filter set name", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[1].Name = "db" }, `filterSets[1]: duplicate name "db"`},
-		{"filter set named Total", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[0].Name = "total" }, `filterSets[0]: name "total" is reserved for the grand total row`},
+		{"filter set named Total", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[0].Name = "total" }, `filterSets[0]: name "total" reads as a total row; it must not be "Total" or end in " Total"`},
+		{"filter set name ending in Total", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[1].Name = "db total" }, `filterSets[1]: name "db total" reads as a total row`},
 		{"filter set without filters", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[1].Filters = nil }, "filterSets[1]: filters is empty"},
 		{"unknown dimension inside a set", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[1].Filters[0].Key = "Bogus" }, `filterSets[1].filters[0]: unknown dimension "Bogus"`},
 		{"set filter without values", func(s *Spec) { s.FilterSets = twoSets(); s.FilterSets[0].Filters[0].Values = nil }, "filterSets[0].filters[0]: values is empty"},

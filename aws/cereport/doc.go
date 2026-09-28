@@ -12,8 +12,8 @@
 //
 // Spec.FilterSets makes a multi-set report: a union of named slices that no
 // single AND-only filter list can describe. Each set runs as its own request,
-// and the CSV stacks each set's rows, a sub-total row per set and the grand
-// Total. Sets are summed, not de-duplicated, so keep them disjoint.
+// and the CSV stacks each set's rows, a "<set> Total" sub-total row per set
+// and the grand Total. Sets are summed, not de-duplicated, so keep them disjoint.
 //
 // The package takes a CostExplorerAPI interface rather than building a client,
 // so callers own credentials and configuration and this package adds no

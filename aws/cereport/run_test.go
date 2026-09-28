@@ -572,15 +572,15 @@ func TestWriteCSV_FilterSets(t *testing.T) {
 	if err := res.WriteCSV(&buf); err != nil {
 		t.Fatalf("WriteCSV: %v", err)
 	}
-	// Each set's rows by descending total, then its sub-total row named after
-	// the set; the grand Total row last. A group key can recur across sets.
+	// Each set's rows by descending total, then its "<set> Total" sub-total
+	// row; the grand Total row last. A group key can recur across sets.
 	want := "SERVICE,2026-01-01,2026-02-01,Total\n" +
 		"RDS,10,20,30\n" +
 		"EC2 - Other,1,0,1\n" +
-		"db,11,20,31\n" +
+		"db Total,11,20,31\n" +
 		"MSK,0,5,5\n" +
 		"EC2 - Other,0,2,2\n" +
-		"stream,0,7,7\n" +
+		"stream Total,0,7,7\n" +
 		"Total,11,27,38\n"
 	if buf.String() != want {
 		t.Errorf("csv =\n%s\nwant\n%s", buf.String(), want)
@@ -625,5 +625,31 @@ func TestWriteCSV_FilterSets_Ungrouped(t *testing.T) {
 		"Total,15.5,15.5\n"
 	if buf.String() != want {
 		t.Errorf("csv =\n%s\nwant\n%s", buf.String(), want)
+	}
+}
+
+// TestIsTotalLabel pins the one rule a CSV consumer needs to skip every
+// aggregate row: the label is "Total", or ends in " Total", in any case.
+func TestIsTotalLabel(t *testing.T) {
+	tests := map[string]bool{
+		"Total":             true,
+		" total ":           true,
+		"db Total":          true,
+		"ansible-awx total": true,
+		"Grand Total":       true,
+		"(total)":           false, // an ungrouped single-set report's data row
+		"Totals":            false,
+		"db subtotal":       false,
+		"total-spend":       false,
+		"EC2 - Other":       false,
+		"":                  false,
+	}
+	for label, want := range tests {
+		if got := isTotalLabel(label); got != want {
+			t.Errorf("isTotalLabel(%q) = %v, want %v", label, got, want)
+		}
+	}
+	if got := subTotalLabel("db"); got != "db Total" || !isTotalLabel(got) {
+		t.Errorf("subTotalLabel(db) = %q, want a total label \"db Total\"", got)
 	}
 }

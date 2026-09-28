@@ -69,7 +69,7 @@ type Spec struct {
 	// databases plus another's clusters. Each set runs as its own request —
 	// Filters AND the set's filters, with this spec's metric, granularity,
 	// group-by and time range — and the results stack: each set's rows, a
-	// sub-total row named after the set, then the grand Total.
+	// "<set> Total" sub-total row, then the grand Total.
 	//
 	// Sets are summed, not de-duplicated: a cost that matches two sets is
 	// counted in both. Keep them disjoint, e.g. by giving each set a SERVICE
@@ -107,7 +107,10 @@ type Filter struct {
 
 // FilterSet is one named slice of a multi-set report (see Spec.FilterSets).
 type FilterSet struct {
-	// Name labels the set's sub-total row and its Result in Result.Sets.
+	// Name identifies the set: its sub-total row reads "<Name> Total" (plain
+	// Name in an ungrouped report, where the set rows are the data) and its
+	// Result in Result.Sets has it as Spec.Name. It must not be "Total" or
+	// end in " Total", which would read as a total row.
 	Name string `json:"name" yaml:"name"`
 	// Filters combine with AND, and with the spec's own Filters.
 	Filters []Filter `json:"filters" yaml:"filters"`

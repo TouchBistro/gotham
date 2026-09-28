@@ -206,18 +206,18 @@ one request per set and stacks the results.
 - One `GetCostAndUsage` request per set, plus one per extra page of groups.
 - In Go: `FilterSets: []cereport.FilterSet{{Name: "app-account", Filters: …}, …}`.
 
-The CSV stacks each set's rows, then a sub-total row named after the set, then
-the grand `Total`:
+The CSV stacks each set's rows, then a `<set> Total` sub-total row, then the
+grand `Total`:
 
 ```
 SERVICE,2025-09-01,…,2026-09-01,Total
 Amazon Relational Database Service,812.4,…,10561.2
 Amazon Elastic Compute Cloud - Compute,640.11,…,8321.43
 …
-app-account,2210.93,…,28742.09
+app-account Total,2210.93,…,28742.09
 Amazon Elastic Compute Cloud - Compute,95.2,…,1237.6
 EC2 - Other,12.08,…,157.04
-ansible-awx,107.28,…,1394.64
+ansible-awx Total,107.28,…,1394.64
 Total,2318.21,…,30136.73
 ```
 
@@ -233,6 +233,12 @@ Total,2318.21,…,30136.73
 ```
 
 (Numbers are illustrative.)
+
+Every aggregate row's label is `Total` or ends in ` Total`, so a consumer can
+skip them all with one rule and keep only data rows. In the ungrouped layout the
+set rows are the data, which is why a set name may not be `Total` or end in
+` Total`. The rule misreads only a group key that itself ends in ` Total`: AWS
+service names don't, but a tag value could.
 
 > **Keep the sets disjoint.** Sets are summed, not de-duplicated. A cost that
 > matches two sets is counted in both, and `Total` overstates the union. Here,
@@ -270,7 +276,8 @@ track the `service/costexplorer` version in `go.mod`) · every `Filter` has at
 least one value · `Relative` is a known range, with `n ≥ 1` for rolling ranges ·
 a `CUSTOM` range has `Start` and `End` · any dates given are `yyyy-MM-dd` with
 `Start` before `End` · `FilterSets`, if given, has at least two sets, each with
-a name (present, unique, not `Total`) and at least one filter of its own.
+a name (present, unique, not `Total` and not ending in ` Total`) and at least
+one filter of its own.
 `cereport.Metrics()`, `Granularities()` and `Dimensions()` return the accepted
 values, sorted, for help text.
 
@@ -390,8 +397,9 @@ every column. Amounts are shortest-round-trip `float64`, never rounded to cents:
 the CSV is an interchange format and rounding is the presentation layer's job.
 Tag groups arrive from the API as `tagkey$value` and are written as-is. A
 multi-set report stacks its sets instead ([Example 5](#example-5--a-union-of-named-slices-filter-sets)).
-Its sub-total rows sit among the group rows, so a consumer that charts every row
-except `Total` must also skip the rows named after a set.
+Its sub-total rows sit among the group rows, labelled `<set> Total`: a consumer
+that skips every label equal to `Total` or ending in ` Total` keeps only data
+rows.
 
 ### Example B — top five groups and their share
 
