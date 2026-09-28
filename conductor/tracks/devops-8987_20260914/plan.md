@@ -329,7 +329,14 @@ union of differently-shaped slices either leaks unintended costs or needs severa
 
 - [x] **Task 6.3: README and doc.go** (FR-3, FR-8) [6a5f7da]
 
-- [~] **Task 6.4: Verification — Phase 6** [checkpoint marker]
+- [x] **Task 6.4: Verification — Phase 6** [checkpoint marker]
+  - **Results (2026-09-28):** `make build` ok; `make lint` 0 issues; `make test` all packages ok; `aws/cereport` **98.8%**;
+    `gofmt -l aws/cereport` empty. Below 100%: `addAt`, `WriteCSV` (Total-row write error), `GetCostAndUsageInput` and `runOne`
+    (error returns now unreachable behind `Run`'s up-front `Validate`) — defensive, kept.
+  - Backward compatibility: cerep HEAD (clean `git archive` export) builds and passes all tests against this gotham; single-set
+    CSV tests unchanged; single-set JSON has no `filterSets` key. cerep's local working tree (requester's in-progress `urls.txt`)
+    fails `TestURLArchive_TagEncodings` because the reports it pins were removed from that file — not a gotham change.
+  - Not pushed; PR #17 unchanged until the requester pushes.
 
 ---
 
