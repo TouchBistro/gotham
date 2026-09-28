@@ -300,6 +300,39 @@ parser-only `Spec` fields, validated output, correct `AZ` mapping.
 
 ---
 
+## Phase 6: Multi-set reports — named filter sets (2026-09-28)
+
+**Goal:** one report can union slices that no single AND-only filter list describes (e.g. SingleApp
+databases + MSK + ECS + some EC2). Each named filter set runs as its own request with the spec's
+metric, granularity, group-by and time range; the CSV stacks each set's rows, a sub-total row named
+after the set, and the grand `Total`. Single-set specs and their CSVs are unchanged.
+
+**Why:** requester feature request 2026-09-28. The console's filter panel ANDs everything, so a
+union of differently-shaped slices either leaks unintended costs or needs several reports.
+
+### Tasks
+
+- [x] **Task 6.1: Deterministic totals** (NFR-1) [b51bab2]
+  - **Red:** `TestWriteCSV_Deterministic` — 71 rows, 50 `WriteCSV` calls must write identical bytes.
+    Measured before the fix: 12 distinct Total rows in 200 runs (map-order float summation).
+  - **Green:** `PeriodTotals()` (new, exported) and `GrandTotal()` sum rows in key order;
+    `WriteCSV` uses `PeriodTotals` for the Total row.
+
+- [~] **Task 6.2: `FilterSets` in `Spec`, `Split`, multi-set `Run` and `WriteCSV`** (FR-8)
+  - **Red:** validation rules for sets; `Split` (common + set filters, no aliasing, single-set is
+    itself); `GetCostAndUsageInput` rejects multi-set; `Run` issues one request per set, wraps a
+    set's error with its name, aligns periods, fills `Sets`, merges `Rows`; grouped and ungrouped
+    multi-set CSV layouts; writer errors in the new paths.
+  - **Green:** `FilterSet` type + `Spec.FilterSets`; `validateFilters` shared by `filters` and
+    `filterSets[i].filters`; `Spec.Split`; `Result.Sets`; `runOne` + `alignPeriods`; `WriteCSV`
+    sections; `groupHeader` → `Filter set` for ungrouped multi-set.
+
+- [ ] **Task 6.3: README and doc.go** (FR-3, FR-8)
+
+- [ ] **Task 6.4: Verification — Phase 6** [checkpoint marker]
+
+---
+
 ## Risks and Dependencies
 
 | Item | Notes |
