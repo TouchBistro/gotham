@@ -163,14 +163,15 @@ grand `Total`.
 - `Spec.FilterSets []FilterSet` (`name`, `filters`), JSON `filterSets`, omitted when empty, so
   single-set specs marshal unchanged.
 - The spec's `Filters` apply to every set, ANDed before the set's own.
-- `Validate`: at least two sets; names present, unique, not "Total"; each set has at least one
+- `Validate`: at least two sets; names present, unique, not "Total" and not ending in " Total"
+  (any case); each set has at least one
   filter of its own; set filters follow the Filter rules (errors name `filterSets[i].filters[j]`).
 - `Run`: one request per set, in order; a set's failure fails the report and names the set;
   periods aligned across sets; `Result.Sets` holds one ordinary Result per set (`Spec.Name` = set
   name) and `Result.Rows` sums the sets by group key.
-- `WriteCSV`: per set, its rows by descending total, then a sub-total row labelled with the set's
-  name; grand `Total` last. Ungrouped: one row per set under a `Filter set` header. Single-set
-  output unchanged.
+- `WriteCSV`: per set, its rows by descending total, then a `<set> Total` sub-total row; grand
+  `Total` last. Ungrouped: one row per set under its bare name, beneath a `Filter set` header.
+  Every aggregate row's label is `Total` or ends in ` Total`. Single-set output unchanged.
 - `Spec.Split()` exposes the per-set specs; `GetCostAndUsageInput` rejects a multi-set spec.
 - Sets are summed, not de-duplicated. Documented, not enforced.
 
@@ -240,5 +241,6 @@ grand `Total`.
 | 2026-09-14 | `LoadSpecs`/`Find` removed from gotham: client config layer (file path, JSON array shape, terminal-formatted error), nothing over `json.Unmarshal`. Moved into the cerep CLI as private helpers. |
 | 2026-09-28 | Totals sum rows in key order (`PeriodTotals`, `GrandTotal`). Measured over 200 runs of one Result: 53 distinct Total rows (synthetic), 200 of 200 distinct on a real 71-service CSV; grand-total spread under 1e-9 USD. Charts unaffected: eng-reports skips the Total row and rounds to cents. |
 | 2026-09-28 | **Filter sets added (FR-8)** at the requester's request. Common `Filters` apply to every set; at least two sets; sub-total label = set name; ungrouped layout = one row per set under `Filter set`. Sets are summed, not de-duplicated; disjointness is documented, not checked. De-duplicating alternatives (one request with an `Or` of the sets; AWS Cost Categories) raised with the requester, not implemented. |
+| 2026-09-28 | Sub-total rows labelled `<set> Total` (spreadsheet pivot convention; console export uses `<dimension> total`) so one rule marks every aggregate row: label is `Total` or ends in ` Total`. Set names may not match that rule; ungrouped set rows keep bare names because they are data. A set-name column was rejected: a second file shape for every consumer, and sub-total rows would still need a marker. |
 | 2026-09-22 | **Reversal:** `ParseURL` reinstated in gotham at the requester's request (they re-added `url.go`/`url_test.go`). Adapted to the current package; `AZ` mapping fixed; output validated. The three parser-only `Spec` fields stay removed. |
 | 2026-09-14 | `Spec.Validate()` added with exported constants; `GetCostAndUsageInput`/`Run` validate first so a bad spec never costs an API request. Dimensions/granularities/types from SDK enums; metrics hand-kept (API spelling differs from the SDK `Metric` enum). |

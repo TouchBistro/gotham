@@ -342,6 +342,29 @@ union of differently-shaped slices either leaks unintended costs or needs severa
 
 ---
 
+## Phase 7: Sub-total label convention (2026-09-28)
+
+**Goal:** a CSV consumer can tell every aggregate row with one rule: the label is `Total` or ends
+in ` Total`. Grouped multi-set sub-total rows read `<set> Total`; the grand total stays `Total`;
+ungrouped multi-set rows keep bare set names because they are the data.
+
+**Why:** requester decision after review. With bare set names nothing in the file distinguishes a
+sub-total row from a group row, so eng-reports (and any generic sum) double-counts. `<item> Total`
+is the spreadsheet pivot convention and matches the console export's `<dimension> total`.
+
+### Tasks
+
+- [x] **Task 7.1: `<set> Total` sub-total labels; reject set names that read as totals** (FR-8) [afffa91]
+  - **Red:** grouped multi-set CSV expects `db Total` / `stream Total`; validation rejects `total`
+    and names ending in ` total` (any case) and accepts `total-spend`, `db subtotal`;
+    `isTotalLabel` table test.
+  - **Green:** `subTotalLabel`, `isTotalLabel` in run.go; `WriteCSV` uses the suffix when grouped;
+    `validateFilterSets` uses `isTotalLabel`; godoc, README (convention + group-key caveat), doc.go.
+
+- [~] **Task 7.2: Verification — Phase 7** [checkpoint marker]
+
+---
+
 ## Risks and Dependencies
 
 | Item | Notes |
