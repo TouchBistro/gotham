@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"slices"
 	"sort"
 	"strconv"
 	"time"
@@ -13,9 +14,17 @@ import (
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
 
-// totalLabel heads the CSV's per-row total column and labels its grand total
-// row.
-const totalLabel = "Total"
+// Labels the CSV uses besides group keys and filter-set names.
+const (
+	// totalLabel heads the per-row total column and labels the grand total
+	// row. Filter sets may not use it as a name.
+	totalLabel = "Total"
+	// ungroupedRow is the single row of a report with no group-by.
+	ungroupedRow = "(total)"
+	// filterSetHeader heads the first column of an ungrouped multi-set
+	// report, whose rows are the sets themselves.
+	filterSetHeader = "Filter set"
+)
 
 // Result is a report's data laid out as a grid: one row per group, one column
 // per time period, in the order Cost Explorer returned them.
@@ -26,6 +35,14 @@ type Result struct {
 	Periods []string             // period start dates, chronological
 	Rows    map[string][]float64 // group key -> per-period amount
 	Unit    string               // currency, e.g. USD
+
+	// Sets holds one Result per filter set of a multi-set report (see
+	// Spec.FilterSets), in spec order, all on the same Periods. Each is an
+	// ordinary single-set Result whose Spec is the set's entry from
+	// Spec.Split, so Sets[i].Spec.Name is the set's name and
+	// Sets[i].GrandTotal() its sub-total. Rows then holds the sets' rows
+	// summed by group key. Nil for a single-set report.
+	Sets []*Result
 }
 
 // CostExplorerAPI is the subset of the Cost Explorer client this package uses.
@@ -36,7 +53,49 @@ type CostExplorerAPI interface {
 // Run validates the spec (see Validate), executes the report and collects
 // every page of results. Cost Explorer paginates group results, so a report
 // with many groups is incomplete unless every page is followed.
+//
+// A multi-set spec (see Spec.FilterSets) runs one request per set, in order,
+// and fails if any set does. Its Result carries each set in Sets, aligned on a
+// common list of periods, and Rows summing the sets by group key.
 func Run(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, opts ...PeriodOption) (*Result, error) {
+	if err := spec.Validate(); err != nil {
+		return nil, err
+	}
+	if len(spec.FilterSets) == 0 {
+		return runOne(ctx, api, spec, now, opts...)
+	}
+
+	res := &Result{Spec: spec, Rows: map[string][]float64{}}
+	subs := spec.Split()
+	for i := range subs {
+		r, err := runOne(ctx, api, &subs[i], now, opts...)
+		if err != nil {
+			return nil, fmt.Errorf("report %q, filter set %q: %w", spec.Name, subs[i].Name, err)
+		}
+		res.Sets = append(res.Sets, r)
+	}
+	res.Periods = alignPeriods(res.Sets)
+	res.Start, res.End = res.Sets[0].Start, res.Sets[0].End
+	for _, set := range res.Sets {
+		if res.Unit == "" {
+			res.Unit = set.Unit
+		}
+		for k, row := range set.Rows {
+			sum, ok := res.Rows[k]
+			if !ok {
+				sum = make([]float64, len(res.Periods))
+			}
+			for i, v := range row {
+				sum[i] += v
+			}
+			res.Rows[k] = sum
+		}
+	}
+	return res, nil
+}
+
+// runOne executes a single-set spec: one request, every page.
+func runOne(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, opts ...PeriodOption) (*Result, error) {
 	in, err := spec.GetCostAndUsageInput(now, opts...)
 	if err != nil {
 		return nil, err
@@ -48,10 +107,8 @@ func Run(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, op
 		End:   *in.TimePeriod.End,
 		Rows:  map[string][]float64{},
 	}
-	// A report with no group-by returns period totals only; give it a single
-	// row so the output shape stays the same either way.
-	const totalRow = "(total)"
-
+	// A report with no group-by returns period totals only; it gets a single
+	// ungroupedRow so the output shape stays the same either way.
 	for {
 		out, err := api.GetCostAndUsage(ctx, in)
 		if err != nil {
@@ -79,7 +136,7 @@ func Run(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, op
 					return nil, err
 				}
 				res.Unit = unit
-				res.addAt(totalRow, idx, amt)
+				res.addAt(ungroupedRow, idx, amt)
 				continue
 			}
 			for _, g := range period.Groups {
@@ -97,6 +154,41 @@ func Run(ctx context.Context, api CostExplorerAPI, spec *Spec, now time.Time, op
 		in.NextPageToken = out.NextPageToken
 	}
 	return res, nil
+}
+
+// alignPeriods puts every result on the union of their periods, in
+// chronological order, zero-filling a period a result did not return, and
+// returns that list. The sets of one report share a time range and
+// granularity, so Cost Explorer normally returns the same periods for each;
+// this keeps the columns lined up if it does not.
+func alignPeriods(results []*Result) []string {
+	seen := map[string]bool{}
+	for _, r := range results {
+		for _, p := range r.Periods {
+			seen[p] = true
+		}
+	}
+	periods := sortedKeys(seen) // ISO dates and timestamps sort chronologically
+	for _, r := range results {
+		if slices.Equal(r.Periods, periods) {
+			continue
+		}
+		at := make(map[string]int, len(r.Periods))
+		for i, p := range r.Periods {
+			at[p] = i
+		}
+		for k, row := range r.Rows {
+			aligned := make([]float64, len(periods))
+			for j, p := range periods {
+				if i, ok := at[p]; ok && i < len(row) {
+					aligned[j] = row[i]
+				}
+			}
+			r.Rows[k] = aligned
+		}
+		r.Periods = slices.Clone(periods)
+	}
+	return periods
 }
 
 // addAt accumulates an amount into a row, growing the row to the current
@@ -178,6 +270,14 @@ func (r *Result) SortedKeys() []string {
 // chart that recomputes column totals, say) would otherwise accumulate the
 // rounding error: over 71 services one month drifts by about five cents from
 // the figure Cost Explorer reports. Rounding is the presentation layer's job.
+//
+// A multi-set report (see Spec.FilterSets) writes each set in spec order — its
+// rows by descending total, then a sub-total row labelled with the set's name
+// — and ends with the grand Total row. The same group key can appear under
+// more than one set. With no group-by a set's only row would repeat its
+// sub-total, so only the sub-total rows are written, under a first-column
+// header of "Filter set". Sub-total rows sit among group rows: a consumer that
+// charts every row except Total must also skip rows named after a set.
 func (r *Result) WriteCSV(w io.Writer) error {
 	cw := csv.NewWriter(w)
 	defer cw.Flush()
@@ -187,8 +287,21 @@ func (r *Result) WriteCSV(w io.Writer) error {
 	if err := cw.Write(header); err != nil {
 		return err
 	}
-	if err := r.writeRows(cw); err != nil {
-		return err
+	if len(r.Sets) == 0 {
+		if err := r.writeRows(cw); err != nil {
+			return err
+		}
+	}
+	grouped := len(r.Spec.GroupBy) > 0
+	for _, set := range r.Sets {
+		if grouped {
+			if err := set.writeRows(cw); err != nil {
+				return err
+			}
+		}
+		if err := cw.Write(record(set.Spec.Name, set.PeriodTotals(), set.GrandTotal())); err != nil {
+			return err
+		}
 	}
 	if err := cw.Write(record(totalLabel, r.PeriodTotals(), r.GrandTotal())); err != nil {
 		return err
@@ -223,6 +336,9 @@ func formatAmount(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64)
 
 func groupHeader(s *Spec) string {
 	if len(s.GroupBy) == 0 {
+		if len(s.FilterSets) > 0 {
+			return filterSetHeader
+		}
 		return totalLabel
 	}
 	parts := make([]string, 0, len(s.GroupBy))

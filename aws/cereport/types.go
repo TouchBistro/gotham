@@ -61,8 +61,21 @@ type Spec struct {
 	Granularity string `json:"granularity" yaml:"granularity"`
 	// GroupBy has at most two entries. Omit it for period totals only.
 	GroupBy []Group `json:"groupBy,omitempty" yaml:"groupBy,omitempty"`
-	// Filters combine with AND.
+	// Filters combine with AND. In a multi-set report they apply to every
+	// set.
 	Filters []Filter `json:"filters,omitempty" yaml:"filters,omitempty"`
+	// FilterSets makes this a multi-set report: a union of named slices that
+	// no single AND-only filter list can describe, e.g. one service's
+	// databases plus another's clusters. Each set runs as its own request —
+	// Filters AND the set's filters, with this spec's metric, granularity,
+	// group-by and time range — and the results stack: each set's rows, a
+	// sub-total row named after the set, then the grand Total.
+	//
+	// Sets are summed, not de-duplicated: a cost that matches two sets is
+	// counted in both. Keep them disjoint, e.g. by giving each set a SERVICE
+	// (or other single-valued dimension) filter whose values no other set
+	// uses.
+	FilterSets []FilterSet `json:"filterSets,omitempty" yaml:"filterSets,omitempty"`
 
 	TimeRange TimeRange `json:"timeRange" yaml:"timeRange"`
 }
@@ -90,6 +103,14 @@ type Filter struct {
 	// Values are API-side values (e.g. the RECORD_TYPE value "Tax"), not
 	// console display labels. At least one is required.
 	Values []string `json:"values" yaml:"values"`
+}
+
+// FilterSet is one named slice of a multi-set report (see Spec.FilterSets).
+type FilterSet struct {
+	// Name labels the set's sub-total row and its Result in Result.Sets.
+	Name string `json:"name" yaml:"name"`
+	// Filters combine with AND, and with the spec's own Filters.
+	Filters []Filter `json:"filters" yaml:"filters"`
 }
 
 // TimeRange is the report's period. Relative names a range that is recomputed

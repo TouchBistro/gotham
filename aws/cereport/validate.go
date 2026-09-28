@@ -11,8 +11,12 @@ import (
 	cetypes "github.com/aws/aws-sdk-go-v2/service/costexplorer/types"
 )
 
-// maxGroupBy is the number of GroupBy entries GetCostAndUsage accepts.
-const maxGroupBy = 2
+const (
+	// maxGroupBy is the number of GroupBy entries GetCostAndUsage accepts.
+	maxGroupBy = 2
+	// minFilterSets is the smallest multi-set report; one set is just Filters.
+	minFilterSets = 2
+)
 
 var (
 	// knownMetrics is hand-kept: GetCostAndUsage takes these CamelCase names,
@@ -75,6 +79,9 @@ func Dimensions() []string { return sortedKeys(knownDimensions) }
 //     constants and a Key; a DIMENSION Key must be a Cost Explorer dimension
 //     (see Dimensions).
 //   - Each Filter has a valid Type and Key (same rules) and at least one value.
+//   - FilterSets, if given, has at least two sets. Each has a name, unique
+//     and not "Total" (the grand total row), and at least one filter of its
+//     own; its filters follow the Filter rules.
 //   - TimeRange.Relative is CUSTOM (or empty), YEAR_TO_DATE, MONTH_TO_DATE,
 //     LAST_<n>_DAYS or LAST_<n>_MONTHS with n ≥ 1. A CUSTOM range has Start
 //     and End. Any Start or End given is yyyy-MM-dd, with Start before End.
@@ -97,20 +104,63 @@ func (s Spec) Validate() error {
 			errs = append(errs, err)
 		}
 	}
-	for i, f := range s.Filters {
-		field := fmt.Sprintf("filters[%d]", i)
-		if err := validateKey(field, f.Type, f.Key); err != nil {
-			errs = append(errs, err)
-		}
-		if len(f.Values) == 0 {
-			errs = append(errs, fmt.Errorf("%s: values is empty", field))
-		}
-	}
+	errs = append(errs, validateFilters("filters", s.Filters)...)
+	errs = append(errs, s.validateFilterSets()...)
 	errs = append(errs, s.TimeRange.validate()...)
 	if len(errs) == 0 {
 		return nil
 	}
 	return fmt.Errorf("report %q: %w", s.Name, errors.Join(errs...))
+}
+
+// validateFilters checks each filter's type/key pair and values; field names
+// the list in error messages, e.g. "filters" or "filterSets[1].filters".
+func validateFilters(field string, filters []Filter) []error {
+	var errs []error
+	for i, f := range filters {
+		at := fmt.Sprintf("%s[%d]", field, i)
+		if err := validateKey(at, f.Type, f.Key); err != nil {
+			errs = append(errs, err)
+		}
+		if len(f.Values) == 0 {
+			errs = append(errs, fmt.Errorf("%s: values is empty", at))
+		}
+	}
+	return errs
+}
+
+// validateFilterSets checks a multi-set report's sets. Names label CSV rows,
+// so they must be present, distinct, and distinct from the grand total's.
+func (s Spec) validateFilterSets() []error {
+	if len(s.FilterSets) == 0 {
+		return nil
+	}
+	var errs []error
+	if len(s.FilterSets) < minFilterSets {
+		errs = append(errs, fmt.Errorf("filterSets has %d entry; a multi-set report needs at least %d (for one, use filters)",
+			len(s.FilterSets), minFilterSets))
+	}
+	seen := make(map[string]bool, len(s.FilterSets))
+	for i, fs := range s.FilterSets {
+		field := fmt.Sprintf("filterSets[%d]", i)
+		name := strings.TrimSpace(fs.Name)
+		switch {
+		case name == "":
+			errs = append(errs, fmt.Errorf("%s: name is required", field))
+		case strings.EqualFold(name, totalLabel):
+			errs = append(errs, fmt.Errorf("%s: name %q is reserved for the grand total row", field, fs.Name))
+		case seen[name]:
+			errs = append(errs, fmt.Errorf("%s: duplicate name %q", field, fs.Name))
+		}
+		seen[name] = true
+		if len(fs.Filters) == 0 {
+			// With nothing of its own the set is just the spec's Filters,
+			// which contain every other set: guaranteed double counting.
+			errs = append(errs, fmt.Errorf("%s: filters is empty; the set would match everything the spec's filters do, overlapping every other set", field))
+		}
+		errs = append(errs, validateFilters(field+".filters", fs.Filters)...)
+	}
+	return errs
 }
 
 // validateKey checks a Group or Filter's type/key pair.

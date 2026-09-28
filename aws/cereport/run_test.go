@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -19,14 +20,19 @@ type fakeCE struct {
 	// tokens records the NextPageToken of each request, so pagination tests
 	// can check that page N+1 asked for the token page N returned.
 	tokens []string
-	// err, when set, is returned from every call.
-	err error
+	// ins records a copy of each request.
+	ins []costexplorer.GetCostAndUsageInput
+	// err, when set, is returned from call number failCall (1-based), or from
+	// every call when failCall is 0.
+	err      error
+	failCall int
 }
 
 func (f *fakeCE) GetCostAndUsage(_ context.Context, in *costexplorer.GetCostAndUsageInput,
 	_ ...func(*costexplorer.Options)) (*costexplorer.GetCostAndUsageOutput, error) {
 	f.tokens = append(f.tokens, aws.ToString(in.NextPageToken))
-	if f.err != nil {
+	f.ins = append(f.ins, *in)
+	if f.err != nil && (f.failCall == 0 || f.failCall == len(f.tokens)) {
 		return nil, f.err
 	}
 	o := f.out[0]
@@ -371,6 +377,16 @@ func TestWriteCSV_WriterErrors(t *testing.T) {
 			Spec: &Spec{}, Periods: []string{"p"},
 			Rows: map[string][]float64{"(total)": {1}},
 		}},
+		{"filter set row", &Result{
+			Spec:    &Spec{GroupBy: []Group{{Type: TypeDimension, Key: "SERVICE"}}, FilterSets: twoSets()},
+			Periods: []string{"p"}, Rows: map[string][]float64{},
+			Sets: []*Result{{Spec: &Spec{Name: "db"}, Periods: []string{"p"}, Rows: map[string][]float64{long: {1}}}},
+		}},
+		{"filter set sub-total row", &Result{
+			Spec:    &Spec{GroupBy: []Group{{Type: TypeDimension, Key: "SERVICE"}}, FilterSets: twoSets()},
+			Periods: []string{"p"}, Rows: map[string][]float64{},
+			Sets: []*Result{{Spec: &Spec{Name: long}, Periods: []string{"p"}, Rows: map[string][]float64{"x": {1}}}},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -423,5 +439,191 @@ func TestPeriodTotals(t *testing.T) {
 	}
 	if got := (&Result{}).PeriodTotals(); len(got) != 0 {
 		t.Errorf("empty Result: PeriodTotals = %v, want []", got)
+	}
+}
+
+// filterSetsSpec is a two-set report grouped by service: RDS, and MSK tagged
+// app=singleapp, with Tax excluded from both.
+func filterSetsSpec() *Spec {
+	return &Spec{
+		Name: "singleapp", Metric: MetricAmortizedCost, Granularity: GranularityMonthly,
+		GroupBy: []Group{{Type: TypeDimension, Key: "SERVICE"}},
+		Filters: []Filter{{Type: TypeDimension, Key: "RECORD_TYPE", Exclude: true, Values: []string{"Tax"}}},
+		FilterSets: []FilterSet{
+			{Name: "db", Filters: []Filter{{Type: TypeDimension, Key: "SERVICE", Values: []string{"RDS"}}}},
+			{Name: "stream", Filters: []Filter{
+				{Type: TypeDimension, Key: "SERVICE", Values: []string{"MSK"}},
+				{Type: TypeTag, Key: "app", Values: []string{"singleapp"}},
+			}},
+		},
+		TimeRange: TimeRange{Relative: RangeCustom, Start: "2026-01-01", End: "2026-03-01"},
+	}
+}
+
+func grp(key, amount string) cetypes.Group {
+	return cetypes.Group{Keys: []string{key}, Metrics: metric(amount)}
+}
+
+// filterSetsAPI answers the two requests filterSetsSpec makes. The second set
+// returns no January period at all, and "EC2 - Other" shows up in both sets.
+func filterSetsAPI() *fakeCE {
+	return &fakeCE{out: []*costexplorer.GetCostAndUsageOutput{
+		{ResultsByTime: []cetypes.ResultByTime{
+			period("2026-01-01", "2026-02-01", grp("RDS", "10"), grp("EC2 - Other", "1")),
+			period("2026-02-01", "2026-03-01", grp("RDS", "20")),
+		}},
+		{ResultsByTime: []cetypes.ResultByTime{
+			period("2026-02-01", "2026-03-01", grp("MSK", "5"), grp("EC2 - Other", "2")),
+		}},
+	}}
+}
+
+func TestRun_FilterSets(t *testing.T) {
+	api := filterSetsAPI()
+	res, err := Run(context.Background(), api, filterSetsSpec(), time.Now())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+
+	// One request per set, each ANDing the common filter with the set's own.
+	if len(api.ins) != 2 {
+		t.Fatalf("made %d requests, want 2 (one per set)", len(api.ins))
+	}
+	type clauses struct {
+		n       int
+		service string
+		tag     bool
+	}
+	for i, want := range []clauses{{2, "RDS", false}, {3, "MSK", true}} {
+		f := api.ins[i].Filter
+		if f == nil || len(f.And) != want.n {
+			t.Fatalf("request %d: filter = %+v, want an And of %d", i, f, want.n)
+		}
+		if n := f.And[0].Not; n == nil || n.Dimensions == nil || string(n.Dimensions.Key) != "RECORD_TYPE" {
+			t.Errorf("request %d: first clause = %+v, want the common NOT RECORD_TYPE", i, f.And[0])
+		}
+		if d := f.And[1].Dimensions; d == nil || string(d.Key) != "SERVICE" || d.Values[0] != want.service {
+			t.Errorf("request %d: second clause = %+v, want SERVICE %s", i, f.And[1], want.service)
+		}
+		if want.tag && (f.And[2].Tags == nil || *f.And[2].Tags.Key != "app") {
+			t.Errorf("request %d: third clause = %+v, want TAG app", i, f.And[2])
+		}
+	}
+
+	if len(res.Sets) != 2 || res.Sets[0].Spec.Name != "db" || res.Sets[1].Spec.Name != "stream" {
+		t.Fatalf("Sets = %+v, want db then stream", res.Sets)
+	}
+	// Every set sits on the same columns; the set with no January gets zeros.
+	periods := []string{"2026-01-01", "2026-02-01"}
+	for _, r := range append([]*Result{res}, res.Sets...) {
+		if !reflect.DeepEqual(r.Periods, periods) {
+			t.Errorf("%s: Periods = %v, want %v", r.Spec.Name, r.Periods, periods)
+		}
+	}
+	if got, want := res.Sets[1].Rows, map[string][]float64{"MSK": {0, 5}, "EC2 - Other": {0, 2}}; !reflect.DeepEqual(got, want) {
+		t.Errorf("stream rows = %v, want %v", got, want)
+	}
+	// Rows sums the sets by group key.
+	if want := map[string][]float64{"RDS": {10, 20}, "MSK": {0, 5}, "EC2 - Other": {1, 2}}; !reflect.DeepEqual(res.Rows, want) {
+		t.Errorf("Rows = %v, want %v", res.Rows, want)
+	}
+	if res.Sets[0].GrandTotal() != 31 || res.Sets[1].GrandTotal() != 7 || res.GrandTotal() != 38 {
+		t.Errorf("sub-totals %v + %v, grand total %v; want 31 + 7 = 38",
+			res.Sets[0].GrandTotal(), res.Sets[1].GrandTotal(), res.GrandTotal())
+	}
+	if res.Unit != "USD" || res.Start != "2026-01-01" || res.End != "2026-03-01" {
+		t.Errorf("Unit/Start/End = %s/%s/%s", res.Unit, res.Start, res.End)
+	}
+}
+
+// TestRun_FilterSetError: a failing set fails the report, and the error says
+// which set.
+func TestRun_FilterSetError(t *testing.T) {
+	want := errors.New("ThrottlingException")
+	api := filterSetsAPI()
+	api.err, api.failCall = want, 2
+	res, err := Run(context.Background(), api, filterSetsSpec(), time.Now())
+	if !errors.Is(err, want) || !strings.Contains(err.Error(), `report "singleapp", filter set "stream"`) {
+		t.Fatalf("err = %v, want %v naming the stream set", err, want)
+	}
+	if res != nil {
+		t.Errorf("Result = %+v, want nil", res)
+	}
+}
+
+func TestRun_FilterSetsInvalid(t *testing.T) {
+	spec := filterSetsSpec()
+	spec.FilterSets[1].Name = "db"
+	api := filterSetsAPI()
+	if _, err := Run(context.Background(), api, spec, time.Now()); err == nil || !strings.Contains(err.Error(), "duplicate name") {
+		t.Fatalf("err = %v, want the duplicate-name validation error", err)
+	}
+	if len(api.ins) != 0 {
+		t.Errorf("made %d requests for an invalid spec, want 0", len(api.ins))
+	}
+}
+
+func TestWriteCSV_FilterSets(t *testing.T) {
+	res, err := Run(context.Background(), filterSetsAPI(), filterSetsSpec(), time.Now())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := res.WriteCSV(&buf); err != nil {
+		t.Fatalf("WriteCSV: %v", err)
+	}
+	// Each set's rows by descending total, then its sub-total row named after
+	// the set; the grand Total row last. A group key can recur across sets.
+	want := "SERVICE,2026-01-01,2026-02-01,Total\n" +
+		"RDS,10,20,30\n" +
+		"EC2 - Other,1,0,1\n" +
+		"db,11,20,31\n" +
+		"MSK,0,5,5\n" +
+		"EC2 - Other,0,2,2\n" +
+		"stream,0,7,7\n" +
+		"Total,11,27,38\n"
+	if buf.String() != want {
+		t.Errorf("csv =\n%s\nwant\n%s", buf.String(), want)
+	}
+
+	// One set on its own writes as an ordinary report.
+	buf.Reset()
+	if err := res.Sets[1].WriteCSV(&buf); err != nil {
+		t.Fatal(err)
+	}
+	if want := "SERVICE,2026-01-01,2026-02-01,Total\nMSK,0,5,5\nEC2 - Other,0,2,2\nTotal,0,7,7\n"; buf.String() != want {
+		t.Errorf("single set csv =\n%s\nwant\n%s", buf.String(), want)
+	}
+}
+
+// TestWriteCSV_FilterSets_Ungrouped: with no group-by each set's only row
+// would repeat its sub-total, so the sets themselves are the rows.
+func TestWriteCSV_FilterSets_Ungrouped(t *testing.T) {
+	spec := filterSetsSpec()
+	spec.GroupBy = nil
+	spec.TimeRange = TimeRange{Relative: RangeCustom, Start: "2026-01-01", End: "2026-02-01"}
+	totalOnly := func(amount string) cetypes.ResultByTime {
+		p := period("2026-01-01", "2026-02-01")
+		p.Total = metric(amount)
+		return p
+	}
+	api := &fakeCE{out: []*costexplorer.GetCostAndUsageOutput{
+		{ResultsByTime: []cetypes.ResultByTime{totalOnly("10.5")}},
+		{ResultsByTime: []cetypes.ResultByTime{totalOnly("5")}},
+	}}
+	res, err := Run(context.Background(), api, spec, time.Now())
+	if err != nil {
+		t.Fatalf("Run: %v", err)
+	}
+	var buf bytes.Buffer
+	if err := res.WriteCSV(&buf); err != nil {
+		t.Fatalf("WriteCSV: %v", err)
+	}
+	want := "Filter set,2026-01-01,Total\n" +
+		"db,10.5,10.5\n" +
+		"stream,5,5\n" +
+		"Total,15.5,15.5\n"
+	if buf.String() != want {
+		t.Errorf("csv =\n%s\nwant\n%s", buf.String(), want)
 	}
 }

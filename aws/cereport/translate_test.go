@@ -1,6 +1,7 @@
 package cereport
 
 import (
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -290,5 +291,61 @@ func TestGetCostAndUsageInput_ExcludeBecomesNot(t *testing.T) {
 	}
 	if len(in.Filter.Not.Dimensions.Values) != 3 {
 		t.Errorf("filter values = %v", in.Filter.Not.Dimensions.Values)
+	}
+}
+
+func TestSplit(t *testing.T) {
+	common := Filter{Type: TypeDimension, Key: "RECORD_TYPE", Exclude: true, Values: []string{"Tax"}}
+	rds := Filter{Type: TypeDimension, Key: "SERVICE", Values: []string{"RDS"}}
+	msk := Filter{Type: TypeDimension, Key: "SERVICE", Values: []string{"MSK"}}
+	app := Filter{Type: TypeTag, Key: "app", Values: []string{"singleapp"}}
+	s := Spec{
+		Name: "stack", Metric: MetricAmortizedCost, Granularity: GranularityMonthly,
+		GroupBy: []Group{{Type: TypeDimension, Key: "SERVICE"}},
+		// Spare capacity: a Split that appended each set's filters onto this
+		// slice in place would let the second set overwrite the first's.
+		Filters:    append(make([]Filter, 0, 4), common),
+		FilterSets: []FilterSet{{Name: "db", Filters: []Filter{rds}}, {Name: "stream", Filters: []Filter{msk, app}}},
+		TimeRange:  TimeRange{Relative: RangeYearToDate},
+	}
+	subs := s.Split()
+	want := []Spec{
+		{Name: "db", Metric: s.Metric, Granularity: s.Granularity, GroupBy: s.GroupBy,
+			Filters: []Filter{common, rds}, TimeRange: s.TimeRange},
+		{Name: "stream", Metric: s.Metric, Granularity: s.Granularity, GroupBy: s.GroupBy,
+			Filters: []Filter{common, msk, app}, TimeRange: s.TimeRange},
+	}
+	if !reflect.DeepEqual(subs, want) {
+		t.Fatalf("Split =\n%+v\nwant\n%+v", subs, want)
+	}
+	for _, sub := range subs {
+		if _, err := sub.GetCostAndUsageInput(timeNow()); err != nil {
+			t.Errorf("split spec %q does not build a request: %v", sub.Name, err)
+		}
+	}
+	// The split specs own their slices: editing one leaves the spec and the
+	// other sets alone.
+	subs[0].GroupBy[0].Key = "REGION"
+	subs[0].Filters = append(subs[0].Filters, app)
+	if s.GroupBy[0].Key != "SERVICE" || len(s.Filters) != 1 || !reflect.DeepEqual(subs[1].Filters, want[1].Filters) {
+		t.Errorf("Split aliased slices: spec GroupBy=%v Filters=%v; stream Filters=%v", s.GroupBy, s.Filters, subs[1].Filters)
+	}
+}
+
+func TestSplit_SingleSetSpecIsItself(t *testing.T) {
+	subs := ytdByService.Split()
+	if len(subs) != 1 || !reflect.DeepEqual(subs[0], ytdByService) {
+		t.Errorf("Split = %+v, want the spec itself", subs)
+	}
+}
+
+// TestGetCostAndUsageInput_RejectsFilterSets: a multi-set spec is several
+// requests, so there is no single input to return.
+func TestGetCostAndUsageInput_RejectsFilterSets(t *testing.T) {
+	s := validSpec()
+	s.FilterSets = twoSets()
+	_, err := s.GetCostAndUsageInput(timeNow())
+	if err == nil || !strings.Contains(err.Error(), "2 filter sets") || !strings.Contains(err.Error(), "Split") {
+		t.Fatalf("err = %v, want one pointing at Run and Split", err)
 	}
 }

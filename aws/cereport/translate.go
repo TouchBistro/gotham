@@ -3,6 +3,7 @@ package cereport
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strconv"
 	"time"
 
@@ -78,11 +79,20 @@ func (s Spec) ResolvePeriod(now time.Time, opts ...PeriodOption) (start, end str
 }
 
 // GetCostAndUsageInput validates the spec (see Validate) and builds the Cost
-// Explorer request for this report as of the given time. Reports with a relative range resolve against `now`, so a
-// year-to-date report stays year-to-date on every replay.
+// Explorer request for this report as of the given time. Reports with a
+// relative range resolve against `now`, so a year-to-date report stays
+// year-to-date on every replay.
+//
+// A multi-set spec (see Spec.FilterSets) is one request per set, so it has no
+// single input: GetCostAndUsageInput returns an error for it. Run it with Run,
+// or call GetCostAndUsageInput on each spec from Split.
 func (s Spec) GetCostAndUsageInput(now time.Time, opts ...PeriodOption) (*costexplorer.GetCostAndUsageInput, error) {
 	if err := s.Validate(); err != nil {
 		return nil, err
+	}
+	if len(s.FilterSets) > 0 {
+		return nil, fmt.Errorf("report %q has %d filter sets, which run as one request each: use Run, or GetCostAndUsageInput on each spec from Split",
+			s.Name, len(s.FilterSets))
 	}
 	start, end, err := s.ResolvePeriod(now, opts...)
 	if err != nil {
@@ -106,9 +116,10 @@ func (s Spec) GetCostAndUsageInput(now time.Time, opts ...PeriodOption) (*costex
 	return in, nil
 }
 
-// Expression builds the Cost Explorer filter expression. Filter rows combine
-// with AND, matching how the console's filter panel behaves, and an excluding
-// row is wrapped in a NOT.
+// Expression builds the Cost Explorer filter expression for the spec's
+// Filters. Filter rows combine with AND, matching how the console's filter
+// panel behaves, and an excluding row is wrapped in a NOT. For a multi-set
+// spec that is the part every set shares; see Split for each set's full list.
 func (s Spec) Expression() (*cetypes.Expression, error) {
 	if len(s.Filters) == 0 {
 		return nil, nil
@@ -157,4 +168,26 @@ func (f Filter) expression() (*cetypes.Expression, error) {
 		return &cetypes.Expression{Not: &e}, nil
 	}
 	return &e, nil
+}
+
+// Split returns the single-set specs a report runs as. A multi-set spec (see
+// Spec.FilterSets) splits into one spec per set, in order, each with the set's
+// name, this spec's metric, granularity, group-by and time range, and Filters
+// = this spec's Filters followed by the set's. The split specs own their
+// Filters and GroupBy slices, so changing one leaves s and the others alone.
+// Any other spec splits into itself.
+func (s Spec) Split() []Spec {
+	if len(s.FilterSets) == 0 {
+		return []Spec{s}
+	}
+	out := make([]Spec, 0, len(s.FilterSets))
+	for _, fs := range s.FilterSets {
+		sub := s
+		sub.Name = fs.Name
+		sub.FilterSets = nil
+		sub.GroupBy = slices.Clone(s.GroupBy)
+		sub.Filters = slices.Concat(s.Filters, fs.Filters)
+		out = append(out, sub)
+	}
+	return out
 }
