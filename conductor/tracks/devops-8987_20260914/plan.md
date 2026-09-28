@@ -327,9 +327,9 @@ union of differently-shaped slices either leaks unintended costs or needs severa
     `filterSets[i].filters`; `Spec.Split`; `Result.Sets`; `runOne` + `alignPeriods`; `WriteCSV`
     sections; `groupHeader` → `Filter set` for ungrouped multi-set.
 
-- [~] **Task 6.3: README and doc.go** (FR-3, FR-8)
+- [x] **Task 6.3: README and doc.go** (FR-3, FR-8) [6a5f7da]
 
-- [ ] **Task 6.4: Verification — Phase 6** [checkpoint marker]
+- [~] **Task 6.4: Verification — Phase 6** [checkpoint marker]
 
 ---
 

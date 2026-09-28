@@ -152,6 +152,30 @@ in the console can be captured once and replayed from code. Reverses the 2026-09
 
 **Priority:** P1
 
+### FR-8: Multi-set reports — named filter sets (added 2026-09-28)
+
+**Description:** A report can be the union of named slices that no single AND-only filter list
+describes (e.g. an account's costs plus one service's tagged resources elsewhere). Each set runs as
+its own request; the CSV stacks each set's rows, a sub-total row named after the set, and the
+grand `Total`.
+
+**Acceptance Criteria:**
+- `Spec.FilterSets []FilterSet` (`name`, `filters`), JSON `filterSets`, omitted when empty, so
+  single-set specs marshal unchanged.
+- The spec's `Filters` apply to every set, ANDed before the set's own.
+- `Validate`: at least two sets; names present, unique, not "Total"; each set has at least one
+  filter of its own; set filters follow the Filter rules (errors name `filterSets[i].filters[j]`).
+- `Run`: one request per set, in order; a set's failure fails the report and names the set;
+  periods aligned across sets; `Result.Sets` holds one ordinary Result per set (`Spec.Name` = set
+  name) and `Result.Rows` sums the sets by group key.
+- `WriteCSV`: per set, its rows by descending total, then a sub-total row labelled with the set's
+  name; grand `Total` last. Ungrouped: one row per set under a `Filter set` header. Single-set
+  output unchanged.
+- `Spec.Split()` exposes the per-set specs; `GetCostAndUsageInput` rejects a multi-set spec.
+- Sets are summed, not de-duplicated. Documented, not enforced.
+
+**Priority:** P1
+
 ### FR-5: Release
 
 **Acceptance Criteria:**
@@ -167,7 +191,8 @@ in the console can be captured once and replayed from code. Reverses the 2026-09
 
 ## Non-Functional Requirements
 
-- **NFR-1 No behaviour change:** for the same `Spec`, `now`, and fake API responses, the moved
+- **NFR-1 No behaviour change** (amended 2026-09-28: the source summed totals in map order, so its Total row
+  was not reproducible run to run; totals now sum in key order)**:** for the same `Spec`, `now`, and fake API responses, the moved
   code produces byte-identical CSV to `cost/savedreport` at `dfa45b1`.
 - **NFR-2 Consumer isolation:** modules that depend on gotham but do not import `aws/cereport`
   compile no AWS code (Go module-graph pruning); only their `go.sum` grows.
@@ -213,5 +238,7 @@ in the console can be captured once and replayed from code. Reverses the 2026-09
 | 2026-09-14 | **Scope change:** console-URL parsing (`url.go`, `ParseURL`, parser tests) purged from gotham; only report generation stays. Capture tooling belongs with the report data in cerep. |
 | 2026-09-14 | `Spec` fields `ReportID`, `ReportARN`, `ChartStyle` removed (parser-written, never read). `Name` kept (lookup key, filenames, error messages); `TimeRange.Start`/`End` kept (CUSTOM ranges). |
 | 2026-09-14 | `LoadSpecs`/`Find` removed from gotham: client config layer (file path, JSON array shape, terminal-formatted error), nothing over `json.Unmarshal`. Moved into the cerep CLI as private helpers. |
+| 2026-09-28 | Totals sum rows in key order (`PeriodTotals`, `GrandTotal`). Measured: map-order summation wrote 12 different Total rows in 200 runs of one Result. |
+| 2026-09-28 | **Filter sets added (FR-8)** at the requester's request. Common `Filters` apply to every set; at least two sets; sub-total label = set name; ungrouped layout = one row per set under `Filter set`. Sets are summed, not de-duplicated; disjointness is documented, not checked. De-duplicating alternatives (one request with an `Or` of the sets; AWS Cost Categories) raised with the requester, not implemented. |
 | 2026-09-22 | **Reversal:** `ParseURL` reinstated in gotham at the requester's request (they re-added `url.go`/`url_test.go`). Adapted to the current package; `AZ` mapping fixed; output validated. The three parser-only `Spec` fields stay removed. |
 | 2026-09-14 | `Spec.Validate()` added with exported constants; `GetCostAndUsageInput`/`Run` validate first so a bad spec never costs an API request. Dimensions/granularities/types from SDK enums; metrics hand-kept (API spelling differs from the SDK `Metric` enum). |
