@@ -300,7 +300,7 @@ parser-only `Spec` fields, validated output, correct `AZ` mapping.
 
 ---
 
-## Phase 6: Multi-set reports — named filter sets (2026-09-28)
+## Phase 6: Multi-set reports — named filter sets (2026-09-28) [checkpoint: e371740]
 
 **Goal:** one report can union slices that no single AND-only filter list describes (e.g. SingleApp
 databases + MSK + ECS + some EC2). Each named filter set runs as its own request with the spec's
@@ -329,7 +329,7 @@ union of differently-shaped slices either leaks unintended costs or needs severa
 
 - [x] **Task 6.3: README and doc.go** (FR-3, FR-8) [6a5f7da]
 
-- [x] **Task 6.4: Verification — Phase 6** [checkpoint marker]
+- [x] **Task 6.4: Verification — Phase 6** [checkpoint marker] [e371740]
   - **Results (2026-09-28):** `make build` ok; `make lint` 0 issues; `make test` all packages ok; `aws/cereport` **98.8%**;
     `gofmt -l aws/cereport` empty. Below 100%: `addAt`, `WriteCSV` (Total-row write error), `GetCostAndUsageInput` and `runOne`
     (error returns now unreachable behind `Run`'s up-front `Validate`) — defensive, kept.
