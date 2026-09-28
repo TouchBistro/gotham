@@ -314,7 +314,9 @@ union of differently-shaped slices either leaks unintended costs or needs severa
 
 - [x] **Task 6.1: Deterministic totals** (NFR-1) [b51bab2]
   - **Red:** `TestWriteCSV_Deterministic` — 71 rows, 50 `WriteCSV` calls must write identical bytes.
-    Measured before the fix: 12 distinct Total rows in 200 runs (map-order float summation).
+    Measured before the fix (map-order float summation), 200 runs each: 53 distinct Total rows on the
+    synthetic fixture; 200 distinct (every run) on a real 71-service × 8-month cereport CSV. Spread of the
+    grand total: under 1e-9 USD. (An earlier "12" was a display cut-off in the probe, corrected 2026-09-28.)
   - **Green:** `PeriodTotals()` (new, exported) and `GrandTotal()` sum rows in key order;
     `WriteCSV` uses `PeriodTotals` for the Total row.
 
